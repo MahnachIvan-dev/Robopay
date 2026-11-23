@@ -9,432 +9,191 @@
   <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
   <style>
     :root {
-      --bg: #ffffff;
-      --surface: #f7f8fa;
-      --surface-hover: #eef1f5;
-      --border: #e6e8ec;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --subtle: #94a3b8;
-      --cyan: #00c4e0;
-      --cyan-dark: #009bb3;
-      --gold: #f4b223;
-      --green: #10b981;
-      --red: #ef4444;
-      --radius-lg: 24px;
-      --radius-md: 16px;
-      --radius-sm: 12px;
+      --bg: #ffffff; --surface: #f6f7f9; --surface-2: #eceff3; --border: #e5e7eb;
+      --ink: #0b1220; --muted: #64748b; --subtle: #94a3b8;
+      --cyan: #00c4e0; --cyan-dark: #0097b2; --gold: #f4b223; --gold-bg: #fff8e6;
+      --green: #10b981; --red: #ef4444;
+      --r-xl: 24px; --r-lg: 20px; --r-md: 14px; --r-sm: 12px;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
-      background: var(--bg);
-      color: var(--ink);
-      font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-      padding-bottom: 84px;
+      background: var(--bg); color: var(--ink); min-height: 100vh; overflow-x: hidden; padding-bottom: 92px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-
     .tabular { font-variant-numeric: tabular-nums; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--subtle); }
 
-    /* Верхняя минималистичная шапка */
+    /* Шапка */
     .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(12px);
-      position: sticky;
-      top: 0;
-      z-index: 20;
+      display: flex; align-items: center; justify-content: space-between; padding: 12px 18px;
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 25;
     }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      font-size: 16px;
-      letter-spacing: -0.02em;
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; letter-spacing: -0.02em; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--bg); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     }
-
-    .balance-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--ink);
-      cursor: pointer;
-    }
-
-    .balance-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--gold);
+    .icon-btn.muted { color: var(--subtle); background: var(--surface); }
+    .bal-chip {
+      display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+      font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer;
     }
 
     /* Экраны */
-    .view {
-      display: none;
-      padding: 20px;
-      max-width: 440px;
-      margin: 0 auto;
-    }
+    .view { display: none; padding: 18px; max-width: 440px; margin: 0 auto; }
     .view.active { display: block; }
 
-    /* --- ЭКРАН 1: ТЕРМИНАЛ С РОБОТОМ --- */
-    .terminal-stage {
-      min-height: calc(100vh - 180px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
+    /* Терминал с роботом */
+    .stage { min-height: calc(100vh - 185px); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .robot-box { cursor: pointer; display: flex; flex-direction: column; align-items: center; user-select: none; padding: 10px; }
+    .robot-svg { width: 234px; height: 164px; overflow: visible; }
+    .robot-shadow { width: 140px; height: 14px; border-radius: 50%; background: radial-gradient(ellipse, rgba(11,18,32,0.08) 0%, transparent 72%); margin-top: 4px; }
+    .robot-hint { margin-top: 16px; font-size: 14px; color: var(--muted); font-weight: 500; text-align: center; min-height: 20px; }
+    .quick-grid { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 
-    .robot-box {
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      user-select: none;
-    }
-
-    .robot-svg {
-      width: 224px;
-      height: 156px;
-      overflow: visible;
-    }
-
-    .robot-hint {
-      margin-top: 20px;
-      font-size: 14px;
-      color: var(--muted);
-      font-weight: 500;
-      text-align: center;
-      min-height: 20px;
-      transition: opacity 0.2s ease;
-    }
-
-    .quick-actions {
-      margin-top: 32px;
-      display: flex;
-      gap: 10px;
-      width: 100%;
-    }
-
-    /* --- КАРТОЧКА ОПЛАТЫ (МОРФИНГ) --- */
+    /* Карточка оплаты */
     .checkout-sheet {
-      display: none;
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
-      opacity: 0;
-      transform: translateY(20px) scale(0.96);
+      display: none; width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--r-xl); padding: 22px; box-shadow: 0 18px 44px rgba(11,18,32,0.08);
+      opacity: 0; transform: translateY(20px) scale(0.96);
     }
-
-    .checkout-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
+    .co-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .pill { padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 600; }
+    .co-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .co-desc { font-size: 14px; color: var(--muted); line-height: 1.45; margin-bottom: 18px; }
+    .price-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 15px 16px; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;
     }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 8px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--ink);
-    }
-
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12px;
-      color: var(--subtle);
-    }
-
-    .checkout-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 6px;
-    }
-
-    .checkout-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.45;
-      margin-bottom: 20px;
-    }
-
-    .price-panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 14px;
-    }
-
-    .price-label { font-size: 13px; color: var(--muted); }
-    .price-num { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+    .price-num { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
     .price-unit { font-size: 15px; font-weight: 700; color: var(--cyan-dark); margin-left: 3px; }
+    .wallet-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 18px; padding: 0 2px; }
+    .success-box { display: none; flex-direction: column; align-items: center; text-align: center; padding: 12px 0 4px; }
 
-    .wallet-inline {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 20px;
-      padding: 0 4px;
-    }
-
-    /* Анимация успеха оплаты */
-    .success-overlay {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    .success-circle {
-      width: 72px;
-      height: 72px;
-      margin-bottom: 16px;
-    }
-
-    /* --- КОШЕЛЁК, QR И ФОРМЫ --- */
+    /* Карточки и списки */
     .card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      margin-bottom: 14px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(11,18,32,0.03);
     }
-
-    .card-soft {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      margin-bottom: 14px;
+    .card-soft { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 14px; margin-bottom: 12px; }
+    .hero-bal { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; margin: 4px 0 16px; line-height: 1.05; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .sec-title { font-size: 12px; font-weight: 700; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px 4px; }
+    .tx-list { display: flex; flex-direction: column; gap: 8px; }
+    .tx-item {
+      display: flex; justify-content: space-between; align-items: center; padding: 12px 14px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm);
     }
+    .tx-title { font-size: 14px; font-weight: 600; }
+    .tx-sub { font-size: 11px; color: var(--subtle); margin-top: 2px; }
+    .badge { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .b-pending { color: #b45309; background: #fef3c7; }
+    .b-approved { color: #047857; background: #d1fae5; }
+    .b-rejected { color: #b91c1c; background: #fee2e2; }
 
-    .hero-balance-label { font-size: 13px; color: var(--muted); font-weight: 500; }
-    .hero-balance {
-      font-size: 38px;
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      margin: 4px 0 18px;
-    }
-
-    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
+    /* Кнопки и инпуты */
     .btn {
-      width: 100%;
-      padding: 13px 16px;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+      width: 100%; padding: 12px 14px; border-radius: var(--r-sm); border: 1px solid transparent;
+      font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      transition: background 0.15s, transform 0.1s;
     }
-    .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .btn-primary { background: var(--ink); color: #ffffff; }
-    .btn-primary:hover { background: #1e293b; }
-
-    .btn-secondary {
-      background: var(--surface);
-      color: var(--ink);
-      border-color: var(--border);
-    }
-    .btn-secondary:hover { background: var(--surface-hover); }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--muted);
-      padding: 10px;
-    }
-
-    .section-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin: 18px 0 10px 4px;
-    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--ink); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
+    .btn-ghost { background: transparent; color: var(--muted); padding: 9px; }
+    .btn-sm { padding: 10px 8px; font-size: 13px; }
 
     .field { margin-bottom: 12px; }
-    .field label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: var(--ink);
-    }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
     .input, .select {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--ink);
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.15s ease;
+      width: 100%; padding: 11px 13px; border-radius: var(--r-sm); border: 1px solid var(--border);
+      background: var(--bg); color: var(--ink); font-size: 15px; outline: none;
     }
     .input:focus, .select:focus { border-color: var(--ink); }
 
-    /* Список операций */
-    .tx-list { display: flex; flex-direction: column; gap: 8px; }
-    .tx-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 14px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
+    /* Чипсы и плитки подарков */
+    .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 12px; }
+    .chip {
+      padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center;
     }
-    .tx-title { font-size: 14px; font-weight: 600; }
-    .tx-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .tx-amt { font-size: 14px; font-weight: 700; }
-    .tx-pos { color: var(--green); }
-    .tx-neg { color: var(--ink); }
+    .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
-    .badge-pending { color: #b45309; background: #fef3c7; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-    .badge-approved { color: #047857; background: #d1fae5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-    .badge-rejected { color: #b91c1c; background: #fee2e2; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-
-    /* QR контейнер */
-    .qr-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 16px;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      margin: 12px 0;
+    .tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .tier-card {
+      padding: 11px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--bg);
+      cursor: pointer; text-align: left; transition: all 0.14s ease;
     }
+    .tier-card.active { border-color: var(--ink); background: var(--surface); }
+    .tier-gift { font-size: 15px; font-weight: 800; color: var(--ink); }
+    .tier-cost { font-size: 12px; font-weight: 700; color: var(--cyan-dark); margin-top: 2px; }
+    .tier-rec { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-    /* Нижняя навигация */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(14px);
-      border-top: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
-      z-index: 30;
+    /* Блок ссылки на владельца для подарка */
+    .owner-box {
+      background: var(--gold-bg); border: 1px solid #fde68a; border-radius: 14px; padding: 12px; margin-bottom: 14px;
     }
-
-    .nav-btn {
-      background: none;
-      border: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--subtle);
-      cursor: pointer;
-      padding: 4px;
+    .owner-box-txt { font-size: 12.5px; color: #78350f; line-height: 1.4; margin-bottom: 9px; }
+    .owner-link {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 12px; background: #fff; border: 1px solid #fcd34d; border-radius: 11px;
+      text-decoration: none; color: var(--ink);
     }
-    .nav-btn.active { color: var(--ink); }
-    .nav-btn svg { width: 22px; height: 22px; stroke-width: 1.9; }
+    .owner-link:active { background: #fffbeb; transform: scale(0.98); }
+    .owner-nick { font-size: 15px; font-weight: 700; color: #0284c7; text-decoration: underline; text-underline-offset: 2px; }
+    .owner-sub { font-size: 11px; color: var(--muted); }
 
-    /* Модальный лист (Bottom Sheet) */
+    /* Центрированные модальные окна с крестиком */
     .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.35);
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      z-index: 50;
+      position: fixed; inset: 0; background: rgba(11,18,32,0.42); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; padding: 16px; z-index: 60;
     }
     .modal-backdrop.open { display: flex; }
-    .modal-sheet {
-      background: var(--bg);
-      width: 100%;
-      max-width: 440px;
-      border-radius: 24px 24px 0 0;
-      padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-      box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.12);
+    .modal-box {
+      background: var(--bg); width: 100%; max-width: 390px; border-radius: var(--r-xl);
+      padding: 20px; box-shadow: 0 24px 60px rgba(11,18,32,0.2); max-height: 90vh; overflow-y: auto;
+      position: relative;
     }
-    .sheet-handle {
-      width: 36px;
-      height: 4px;
-      background: var(--border);
-      border-radius: 99px;
-      margin: 0 auto 16px;
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .modal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--surface); color: var(--ink); font-size: 20px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     }
+    .modal-close:active { background: var(--surface-2); transform: scale(0.92); }
+
+    /* QR и нижняя навигация */
+    .qr-wrap { display: flex; flex-direction: column; align-items: center; padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-md); margin: 12px 0; }
+    .dock-wrap { position: fixed; bottom: 0; left: 0; right: 0; padding: 0 16px calc(12px + env(safe-area-inset-bottom)); pointer-events: none; z-index: 30; display: flex; justify-content: center; }
+    .dock {
+      pointer-events: auto; width: 100%; max-width: 400px; background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 20px;
+      box-shadow: 0 10px 28px rgba(11,18,32,0.08); display: grid; grid-template-columns: repeat(3, 1fr); padding: 5px;
+    }
+    .nav-btn {
+      background: transparent; border: none; border-radius: 15px; display: flex; flex-direction: column;
+      align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--subtle); cursor: pointer; padding: 7px 4px;
+    }
+    .nav-btn.active { background: var(--surface); color: var(--ink); }
+    .nav-btn svg { width: 20px; height: 20px; stroke-width: 2; }
 
     .toast {
-      position: fixed;
-      top: 68px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-10px);
-      background: var(--ink);
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 100;
-      white-space: nowrap;
+      position: fixed; top: 64px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff;
+      padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0;
+      pointer-events: none; z-index: 100; white-space: nowrap; box-shadow: 0 8px 24px rgba(11,18,32,0.18);
     }
   </style>
 </head>
 <body>
-  <!-- Шапка -->
   <header class="topbar">
     <div class="brand">
-      <svg width="26" height="20" viewBox="0 0 240 164" fill="none">
+      <svg width="28" height="20" viewBox="0 0 240 164" fill="none">
         <path d="M168 32 H62 C36 32 22 46 22 72 V102 C22 128 36 142 62 142 H178 C204 142 218 128 218 102 V76" stroke="#00C4E0" stroke-width="18" stroke-linecap="round"/>
         <rect x="66" y="75" width="38" height="20" rx="10" fill="#00C4E0"/>
         <rect x="136" y="75" width="38" height="20" rx="10" fill="#00C4E0"/>
@@ -442,693 +201,597 @@
       </svg>
       <span>RoboPay</span>
     </div>
-    <button class="balance-chip tabular" id="topBalanceBtn">
-      <span class="balance-dot"></span>
-      <span id="topBalanceVal">0</span> RP
-    </button>
+    <div class="topbar-right">
+      <button class="icon-btn" id="soundBtn" title="Звук">
+        <svg id="sndOn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <svg id="sndOff" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      </button>
+      <button class="bal-chip tabular" id="topBalBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="#F4B223"><path d="M12 0 L15 9 L24 12 L15 15 L12 24 L9 15 L0 12 L9 9 Z"/></svg>
+        <span id="topBal">0</span> RP
+      </button>
+    </div>
   </header>
 
   <div class="toast" id="toast"></div>
 
-  <!-- ЭКРАН 1: ТЕРМИНАЛ И ЧЕКАУТ -->
+  <!-- 1. ТЕРМИНАЛ -->
   <main class="view active" id="viewTerminal">
-    <div class="terminal-stage">
-      <!-- Точный векторный робот по логотипу -->
+    <div class="stage">
       <div class="robot-box" id="robotBox">
-        <svg class="robot-svg" id="robotSvg" viewBox="0 0 240 164" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg class="robot-svg" viewBox="0 0 240 168" fill="none">
+          <g id="fxLayer"></g>
           <g id="robotBody">
-            <!-- Скруглённый контур визора с вырезом под звезду -->
-            <path
-              id="visorFrame"
-              d="M166 34 H62 C37 34 24 47 24 72 V102 C24 127 37 140 62 140 H178 C203 140 216 127 216 102 V74"
-              stroke="#00C4E0"
-              stroke-width="11"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <!-- Левый горизонтальный глаз-капсула -->
-            <g id="eyeLeftGroup">
-              <rect id="eyeLeft" x="66" y="76" width="38" height="20" rx="10" fill="#00C4E0" />
-            </g>
-            <!-- Правый горизонтальный глаз-капсула -->
-            <g id="eyeRightGroup">
-              <rect id="eyeRight" x="136" y="76" width="38" height="20" rx="10" fill="#00C4E0" />
-            </g>
-            <!-- Золотая 4-лучевая звезда в правом верхнем углу -->
-            <g id="goldStar" style="transform-origin: 204px 34px;">
-              <path d="M204 6 L211.5 26.5 L232 34 L211.5 41.5 L204 62 L196.5 41.5 L176 34 L196.5 26.5 Z" fill="#F4B223" />
-            </g>
+            <path id="visorFrame" d="M166 34 H62 C37 34 24 47 24 72 V102 C24 127 37 140 62 140 H178 C203 140 216 127 216 102 V74" stroke="#00C4E0" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+            <g id="eyeLG"><rect id="eyeL" x="66" y="76" width="38" height="20" rx="10" fill="#00C4E0"/></g>
+            <g id="eyeRG"><rect id="eyeR" x="136" y="76" width="38" height="20" rx="10" fill="#00C4E0"/></g>
+            <g id="goldStar" style="transform-origin:204px 34px;"><path d="M204 6 L211.5 26.5 L232 34 L211.5 41.5 L204 62 L196.5 41.5 L176 34 L196.5 26.5 Z" fill="#F4B223"/></g>
           </g>
         </svg>
-        <div class="robot-hint" id="robotHint">Готов к оплате • Нажмите на робота</div>
+        <div class="robot-shadow" id="robotShadow"></div>
+        <div class="robot-hint" id="robotHint">Нажмите на робота или отсканируйте QR</div>
       </div>
 
-      <!-- Быстрые кнопки под роботом (скрываются в режиме чекаута) -->
-      <div class="quick-actions" id="terminalActions">
-        <button class="btn btn-primary" id="btnScanQr">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-          Сканировать QR
-        </button>
-        <button class="btn btn-secondary" id="btnGoTransfer">
-          Перевести RP
-        </button>
+      <div class="quick-grid" id="termActions">
+        <button class="btn btn-primary" id="btnScanQr">Сканировать QR</button>
+        <button class="btn btn-secondary" id="btnQuickTopup">Пополнить RP</button>
       </div>
 
-      <!-- Лист оплаты счёта (появляется после морфинга робота) -->
       <div class="checkout-sheet" id="checkoutSheet">
-        <div id="checkoutFormState">
-          <div class="checkout-meta">
-            <span class="pill" id="coMerchant">MERCHANT</span>
-            <span class="mono" id="coOrderId">#ORD</span>
+        <div id="coForm">
+          <div class="co-meta"><span class="pill" id="coMerchant">MERCHANT</span><span class="mono" id="coOrderId">#ORD</span></div>
+          <div class="co-title" id="coTitle">Услуга</div>
+          <div class="co-desc" id="coDesc">Мгновенная оплата с баланса RoboPay</div>
+          <div class="price-box">
+            <span style="font-size:13px;color:var(--muted);">К оплате</span>
+            <div class="tabular"><span class="price-num" id="coAmt">0</span><span class="price-unit">RP</span></div>
           </div>
-          <div class="checkout-title" id="coTitle">Услуга</div>
-          <div class="checkout-desc" id="coDesc">Мгновенная оплата с баланса RoboPay</div>
-
-          <div class="price-panel">
-            <span class="price-label">К оплате</span>
-            <div class="tabular">
-              <span class="price-num" id="coAmount">0</span>
-              <span class="price-unit">RP</span>
-            </div>
-          </div>
-
-          <div class="wallet-inline tabular">
-            <span>Ваш баланс RoboPay</span>
-            <strong id="coUserBal">0 RP</strong>
-          </div>
-
+          <div class="wallet-row tabular"><span>Ваш баланс</span><strong id="coUserBal">0 RP</strong></div>
           <button class="btn btn-primary" id="coPayBtn">Оплатить</button>
-          <button class="btn btn-ghost" id="coCancelBtn" style="margin-top: 6px;">Отменить</button>
+          <button class="btn btn-ghost" id="coCancelBtn" style="margin-top:4px;">Отменить</button>
         </div>
-
-        <!-- Анимация успешного платежа -->
-        <div class="success-overlay" id="checkoutSuccessState">
-          <svg class="success-circle" viewBox="0 0 72 72" fill="none">
-            <circle cx="36" cy="36" r="32" fill="#ECFDF5" stroke="#10B981" stroke-width="3"/>
-            <path id="successCheckPath" d="M23 37 L32 46 L50 27" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60" stroke-dashoffset="60"/>
+        <div class="success-box" id="coSuccess">
+          <svg width="74" height="74" viewBox="0 0 74 74" fill="none" style="margin-bottom:14px;">
+            <circle cx="37" cy="37" r="33" fill="#ECFDF5" stroke="#10B981" stroke-width="3"/>
+            <path id="chkPath" d="M24 38 L33 47 L51 28" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60" stroke-dashoffset="60"/>
           </svg>
-          <div class="checkout-title" style="margin-bottom: 6px;">Оплачено</div>
-          <div class="checkout-desc" style="margin-bottom: 20px;" id="coSuccessSub">Сигнал моментально отправлен продавцу</div>
-          <button class="btn btn-secondary" id="coDoneBtn">Вернуться в терминал</button>
+          <div class="co-title">Оплачено</div>
+          <div class="co-desc" id="coSuccessSub">Сигнал отправлен продавцу</div>
+          <button class="btn btn-secondary" id="coDoneBtn">В терминал</button>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- ЭКРАН 2: КОШЕЛЁК -->
+  <!-- 2. КОШЕЛЁК -->
   <section class="view" id="viewWallet">
     <div class="card">
-      <div class="hero-balance-label">Личный баланс RoboPay</div>
-      <div class="hero-balance tabular"><span id="walletBalBig">0</span> <span style="font-size: 20px; color: var(--cyan-dark);">RP</span></div>
-      <div class="row-2">
-        <button class="btn btn-primary" id="openTopupModal">Пополнить</button>
-        <button class="btn btn-secondary" id="openTransferModal">Перевести</button>
+      <div style="font-size:13px;color:var(--muted);font-weight:500;">Баланс RoboPay</div>
+      <div class="hero-bal tabular"><span id="walletBal">0</span> <span style="font-size:20px;color:var(--cyan-dark);">RP</span></div>
+      <div class="row-3">
+        <button class="btn btn-primary btn-sm" id="openTopupBtn">Пополнить</button>
+        <button class="btn btn-secondary btn-sm" id="openWithdrawBtn">Вывести ⭐</button>
+        <button class="btn btn-secondary btn-sm" id="openTransferBtn">Перевести</button>
       </div>
     </div>
 
-    <div class="section-title">Заявки на пополнение</div>
-    <div class="tx-list" id="topupsList">
-      <div class="card-soft" style="font-size: 13px; color: var(--muted); text-align: center;">Заявок пока нет</div>
-    </div>
+    <div class="sec-title">Заявки на пополнение и вывод</div>
+    <div class="tx-list" id="reqList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Заявок пока нет</div></div>
 
-    <div class="section-title">История операций</div>
-    <div class="tx-list" id="historyList">
-      <div class="card-soft" style="font-size: 13px; color: var(--muted); text-align: center;">Операций пока нет</div>
-    </div>
+    <div class="sec-title">История операций</div>
+    <div class="tx-list" id="histList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Операций пока нет</div></div>
   </section>
 
-  <!-- ЭКРАН 3: QR И ВЫСТАВЛЕНИЕ СЧЁТА -->
+  <!-- 3. QR И СЧЕТА -->
   <section class="view" id="viewQr">
     <div class="card">
-      <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Мой QR для приёма RP</div>
-      <div style="font-size: 13px; color: var(--muted);">Покажите код другому пользователю — при сканировании откроется перевод на ваш ID.</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Мой QR для приёма RP</div>
+      <div style="font-size:13px;color:var(--muted);">При сканировании откроется перевод на ваш Telegram ID.</div>
       <div class="qr-wrap">
-        <div id="myQrContainer"></div>
-        <div class="mono" style="margin-top: 10px;" id="myTgIdLabel">ID: —</div>
+        <div id="myQrBox"></div>
+        <div class="mono" style="margin-top:10px;" id="myIdLbl">ID: —</div>
       </div>
       <button class="btn btn-secondary" id="copyIdBtn">Скопировать мой ID</button>
     </div>
 
-    <div class="card" id="merchantQrCard">
-      <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Создать QR-счёт проекта</div>
-      <div id="noProjectsNote" style="display:none; font-size: 13px; color: var(--muted);">
-        Создайте первый проект в меню бота («📦 Мои проекты»), чтобы выставлять счета клиентам.
-      </div>
-      <div id="invoiceCreatorBox">
-        <div class="field">
-          <label>Проект</label>
-          <select class="select" id="invProjectSelect"></select>
-        </div>
-        <div class="field">
-          <label>Название услуги</label>
-          <input class="input" id="invTitleInput" placeholder="Например: Доступ в канал" maxlength="48" />
-        </div>
-        <div class="field">
-          <label>Сумма (RP)</label>
-          <input class="input tabular" id="invAmountInput" type="number" min="1" placeholder="50" />
-        </div>
-        <button class="btn btn-primary" id="createInvQrBtn">Сгенерировать QR и ссылку</button>
-
-        <div id="generatedInvResult" style="display:none; margin-top: 16px;">
-          <div class="qr-wrap">
-            <div id="invoiceQrContainer"></div>
-          </div>
-          <button class="btn btn-secondary" id="copyInvLinkBtn">Скопировать ссылку оплаты</button>
+    <div class="card">
+      <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Создать QR-счёт проекта</div>
+      <div id="noProjNote" style="display:none;font-size:13px;color:var(--muted);">Создайте проект в боте («📦 Мои проекты»), чтобы выставлять счета.</div>
+      <div id="invBox">
+        <div class="field"><label>Проект</label><select class="select" id="invProj"></select></div>
+        <div class="field"><label>Услуга</label><input class="input" id="invTitle" placeholder="VIP-доступ" maxlength="48"/></div>
+        <div class="field"><label>Сумма (RP)</label><input class="input tabular" id="invAmt" type="number" min="1" placeholder="50"/></div>
+        <button class="btn btn-primary" id="createInvBtn">Сгенерировать QR и ссылку</button>
+        <div id="invRes" style="display:none;margin-top:14px;">
+          <div class="qr-wrap"><div id="invQrBox"></div></div>
+          <button class="btn btn-secondary" id="copyInvBtn">Скопировать ссылку</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Нижняя навигация -->
-  <nav class="bottom-nav" id="bottomNav">
-    <button class="nav-btn active" data-tab="Terminal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="4"/><line x1="8" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="16" y2="12"/></svg>
-      Терминал
-    </button>
-    <button class="nav-btn" data-tab="Wallet">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
-      Кошелёк
-    </button>
-    <button class="nav-btn" data-tab="Qr">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v7h-6"/></svg>
-      QR и Счета
-    </button>
-  </nav>
+  <!-- Нижняя панель -->
+  <div class="dock-wrap">
+    <nav class="dock">
+      <button class="nav-btn active" data-tab="Terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="4"/><line x1="8" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="16" y2="12"/></svg>Терминал</button>
+      <button class="nav-btn" data-tab="Wallet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Кошелёк</button>
+      <button class="nav-btn" data-tab="Qr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v7h-6"/></svg>QR и Счета</button>
+    </nav>
+  </div>
 
-  <!-- Модалка: Пополнение кошелька -->
+  <!-- МОДАЛКА 1: ПОПОЛНЕНИЕ ПОДАРКОМ (ДО 100 ⭐) -->
   <div class="modal-backdrop" id="topupModal">
-    <div class="modal-sheet">
-      <div class="sheet-handle"></div>
-      <div style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">Пополнение через Stars</div>
-      <div class="card-soft" style="font-size: 13px; line-height: 1.45; color: var(--muted);">
-        1. Отправьте звёзды аккаунту <strong style="color: var(--ink);" id="ownerUsernameTxt">@owner</strong>.<br/>
-        2. Укажите сумму ниже — владелец проверит поступление и зачислит <strong>RP (1:1)</strong>.
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-title">Пополнение подарком</div>
+        <button class="modal-close" data-close="topupModal" aria-label="Закрыть">&times;</button>
       </div>
-      <div class="field">
-        <label>Сумма отправленных Stars</label>
-        <input class="input tabular" id="topupAmtInput" type="number" min="1" placeholder="100" />
+      <div class="owner-box">
+        <div class="owner-box-txt">1. Нажмите на ссылку ниже и отправьте Telegram-подарок владельцу (до <strong>100 ⭐</strong>, курс 1:1):</div>
+        <a href="#" class="owner-link" id="ownerGiftLink">
+          <div>
+            <div class="owner-nick" id="ownerNickTxt">@owner</div>
+            <div class="owner-sub" id="ownerUrlTxt">https://t.me/owner</div>
+          </div>
+          <span style="font-size:20px;">🎁</span>
+        </a>
       </div>
-      <div class="field">
-        <label>Комментарий (необязательно)</label>
-        <input class="input" id="topupCommentInput" placeholder="Например: отправил подарком" maxlength="200" />
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">2. Номинал отправленного подарка (до 100 ⭐)</div>
+      <div class="chips" id="topupChips">
+        <button class="chip" data-amt="15">15 ⭐</button>
+        <button class="chip" data-amt="25">25 ⭐</button>
+        <button class="chip" data-amt="50">50 ⭐</button>
+        <button class="chip" data-amt="100">100 ⭐</button>
       </div>
-      <button class="btn btn-primary" id="submitTopupBtn">Отправить заявку владельцу</button>
-      <button class="btn btn-ghost" data-close-modal="topupModal" style="margin-top: 6px;">Закрыть</button>
+      <div class="field"><input class="input tabular" id="topAmt" type="number" min="1" max="100" placeholder="Сумма от 1 до 100 ⭐"/></div>
+      <div class="field"><input class="input" id="topComm" placeholder="Комментарий (например: мишка за 15 ⭐)" maxlength="200"/></div>
+      <button class="btn btn-primary" id="submitTopupBtn">Я отправил подарок — подать заявку</button>
     </div>
   </div>
 
-  <!-- Модалка: Перевод RP -->
+  <!-- МОДАЛКА 2: ВЫВОД В ЗВЁЗДЫ ПОДАРКОМ -->
+  <div class="modal-backdrop" id="withdrawModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-title">Вывод в Telegram Stars</div>
+        <button class="modal-close" data-close="withdrawModal" aria-label="Закрыть">&times;</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+        Выберите подарок — владелец отправит его на ваш аккаунт после одобрения. В стоимость включена комиссия вывода (<strong id="wdrFeePct">20%</strong>).
+      </div>
+      <div class="tier-grid" id="tierGrid"></div>
+      <div class="card-soft tabular" id="wdrSummary" style="font-size:13px;line-height:1.5;">Выберите номинал подарка выше</div>
+      <div class="field"><input class="input" id="wdrNote" placeholder="Комментарий владельцу (необязательно)" maxlength="120"/></div>
+      <button class="btn btn-primary" id="submitWdrBtn" disabled>Отправить заявку на вывод</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА 3: ПЕРЕВОД С КОМИССИЕЙ -->
   <div class="modal-backdrop" id="transferModal">
-    <div class="modal-sheet">
-      <div class="sheet-handle"></div>
-      <div style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">Перевод пользователю RoboPay</div>
-      <div class="field">
-        <label>Telegram ID получателя</label>
-        <input class="input tabular" id="trToInput" type="number" placeholder="123456789" />
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-title">Перевод RP</div>
+        <button class="modal-close" data-close="transferModal" aria-label="Закрыть">&times;</button>
       </div>
-      <div class="field">
-        <label>Сумма (RP)</label>
-        <input class="input tabular" id="trAmtInput" type="number" min="1" placeholder="50" />
-      </div>
-      <div class="field">
-        <label>Комментарий</label>
-        <input class="input" id="trCommentInput" placeholder="За работу" maxlength="120" />
-      </div>
-      <button class="btn btn-primary" id="submitTransferBtn">Перевести</button>
-      <button class="btn btn-ghost" data-close-modal="transferModal" style="margin-top: 6px;">Закрыть</button>
+      <div class="field"><label>Telegram ID получателя</label><input class="input tabular" id="trTo" type="number" placeholder="123456789"/></div>
+      <div class="field"><label>Сумма списания (RP)</label><input class="input tabular" id="trAmt" type="number" min="1" placeholder="50"/></div>
+      <div class="card-soft tabular" id="trPreview" style="font-size:12.5px;color:var(--muted);">Комиссия перевода: 5%</div>
+      <div class="field"><input class="input" id="trComm" placeholder="Комментарий" maxlength="120"/></div>
+      <button class="btn btn-primary" id="submitTrBtn">Перевести</button>
     </div>
   </div>
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      tg.setHeaderColor("#ffffff");
-      tg.setBackgroundColor("#ffffff");
-    }
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#ffffff"); tg.setBackgroundColor("#ffffff"); }
 
+    // --- ЗВУКОВОЙ СИНТЕЗАТОР ---
+    const Snd = (() => {
+      let ctx = null, on = localStorage.getItem("rp_snd") !== "off";
+      const ensure = () => {
+        if (!on) return null;
+        if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ctx = new AC(); }
+        if (ctx?.state === "suspended") ctx.resume().catch(() => {});
+        return ctx;
+      };
+      const t = (f, off, dur, type = "sine", vol = 0.07, slide = null) => {
+        const c = ensure(); if (!c) return;
+        const now = c.currentTime + off, o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, now);
+        if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
+        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(vol, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        o.connect(g); g.connect(c.destination); o.start(now); o.stop(now + dur + 0.02);
+      };
+      return {
+        on: () => on, unlock: ensure,
+        toggle() { on = !on; localStorage.setItem("rp_snd", on ? "on" : "off"); if (on) this.tap(); return on; },
+        tap: () => t(600, 0, 0.05, "sine", 0.04, 740),
+        nav: () => t(430, 0, 0.04, "triangle", 0.03, 510),
+        happy: () => { t(523, 0, 0.11, "sine", 0.06); t(659, 0.07, 0.12, "sine", 0.06); t(784, 0.14, 0.2, "sine", 0.065); },
+        wink: () => t(460, 0, 0.1, "sine", 0.055, 760),
+        scan: () => { t(740, 0, 0.07, "sine", 0.045); t(920, 0.1, 0.08, "sine", 0.045); },
+        surprise: () => t(360, 0, 0.17, "triangle", 0.06, 840),
+        star: () => { t(880, 0, 0.15, "sine", 0.05); t(1318, 0.06, 0.2, "sine", 0.05); t(1760, 0.12, 0.25, "sine", 0.04); },
+        bounce: () => { t(340, 0, 0.08, "sine", 0.055, 550); t(480, 0.1, 0.11, "sine", 0.055, 680); },
+        sleepy: () => t(470, 0, 0.26, "sine", 0.045, 290),
+        morph: () => { t(380, 0, 0.18, "sine", 0.05, 640); t(760, 0.1, 0.16, "triangle", 0.04, 960); },
+        ok: () => { t(659, 0, 0.15, "sine", 0.075); t(988, 0.08, 0.32, "sine", 0.085); t(1318, 0.13, 0.34, "triangle", 0.04); },
+        err: () => { t(240, 0, 0.11, "triangle", 0.065, 190); t(190, 0.12, 0.14, "triangle", 0.065, 150); }
+      };
+    })();
+    window.addEventListener("pointerdown", () => Snd.unlock(), { once: true });
+
+    const sndBtn = document.getElementById("soundBtn");
+    const syncSndUI = () => {
+      document.getElementById("sndOn").style.display = Snd.on() ? "block" : "none";
+      document.getElementById("sndOff").style.display = Snd.on() ? "none" : "block";
+      sndBtn.classList.toggle("muted", !Snd.on());
+    };
+    syncSndUI();
+    sndBtn.addEventListener("click", () => { Snd.toggle(); syncSndUI(); });
+
+    // --- СОСТОЯНИЕ И ХЕЛПЕРЫ ---
     const INIT_DATA = tg?.initData || "";
-    const state = {
-      user: null,
-      ownerUsername: "@owner",
-      projects: [],
-      topups: [],
-      history: [],
-      currentOrder: null,
-      isCheckoutMode: false,
-      isReacting: false,
-      lastReaction: -1,
-      lastCreatedLink: ""
+    const st = {
+      user: null, ownerUrl: "https://t.me/owner", commRate: 0.05, wdrRate: 0.20,
+      tiers: [], selectedGift: null, order: null, checkout: false, reacting: false, lastReact: -1, lastLink: "", bal: 0
     };
 
-    // --- ХЕЛПЕРЫ API И UI ---
-    async function api(path, options = {}) {
-      const headers = {
-        "Content-Type": "application/json",
-        "X-Telegram-Init-Data": INIT_DATA,
-        ...(options.headers || {})
-      };
-      const res = await fetch(path, { ...options, headers });
+    async function api(url, opts = {}) {
+      const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": INIT_DATA, ...(opts.headers || {}) } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Ошибка запроса");
       return data;
     }
 
-    function showToast(msg) {
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      gsap.killTweensOf(t);
-      gsap.fromTo(t, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.22 });
-      gsap.to(t, { opacity: 0, y: -10, duration: 0.25, delay: 2.2 });
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      gsap.killTweensOf(el);
+      gsap.fromTo(el, { opacity: 0, y: -10, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "back.out(1.6)" });
+      gsap.to(el, { opacity: 0, y: -10, duration: 0.22, delay: 2.3 });
     }
 
-    function openModal(id) { document.getElementById(id).classList.add("open"); }
-    function closeModal(id) { document.getElementById(id).classList.remove("open"); }
-    document.querySelectorAll("[data-close-modal]").forEach(btn => {
-      btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
-    });
+    function animBal(v) {
+      const o = { n: st.bal };
+      gsap.to(o, {
+        n: v, duration: 0.5, ease: "power2.out",
+        onUpdate: () => { const r = Math.round(o.n); document.getElementById("topBal").textContent = r; document.getElementById("walletBal").textContent = r; },
+        onComplete: () => { st.bal = v; }
+      });
+    }
 
-    // --- НАВИГАЦИЯ ---
-    function switchTab(tabName) {
-      if (state.isCheckoutMode && tabName !== "Terminal") exitCheckout();
+    function openModal(id) {
+      Snd.tap();
+      const m = document.getElementById(id), box = m.querySelector(".modal-box");
+      m.classList.add("open");
+      gsap.fromTo(box, { scale: 0.9, opacity: 0, y: 12 }, { scale: 1, opacity: 1, y: 0, duration: 0.24, ease: "back.out(1.5)" });
+    }
+    function closeModal(id) {
+      Snd.nav();
+      document.getElementById(id).classList.remove("open");
+    }
+    document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
+    document.querySelectorAll(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModal(b.id); }));
+
+    function switchTab(name) {
+      Snd.nav();
+      if (st.checkout && name !== "Terminal") exitCheckout();
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-      document.getElementById(`view${tabName}`).classList.add("active");
-      document.querySelector(`.nav-btn[data-tab="${tabName}"]`).classList.add("active");
+      const v = document.getElementById(`view${name}`);
+      v.classList.add("active");
+      document.querySelector(`.nav-btn[data-tab="${name}"]`).classList.add("active");
+      gsap.fromTo(v, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.22 });
+    }
+    document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+    document.getElementById("topBalBtn").addEventListener("click", () => switchTab("Wallet"));
+
+    // --- РОБОТ И 7 АНИМАЦИЙ ---
+    const rBox = document.getElementById("robotBox"), rBody = document.getElementById("robotBody"), rShad = document.getElementById("robotShadow");
+    const eL = document.getElementById("eyeL"), eR = document.getElementById("eyeR"), eLG = document.getElementById("eyeLG"), eRG = document.getElementById("eyeRG");
+    const star = document.getElementById("goldStar"), frame = document.getElementById("visorFrame"), fx = document.getElementById("fxLayer"), hint = document.getElementById("robotHint");
+
+    gsap.set([eL, eR, rBody], { transformOrigin: "50% 50%" });
+    gsap.to(rBody, { y: -6, duration: 2.3, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    gsap.to(rShad, { scaleX: 0.88, opacity: 0.65, duration: 2.3, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+    function sparks(cx = 204, cy = 34, n = 8) {
+      const cols = ["#F4B223", "#00C4E0", "#FBBF24"];
+      for (let i = 0; i < n; i++) {
+        const a = (Math.PI * 2 * i) / n + Math.random() * 0.3, d = 24 + Math.random() * 26, s = 4 + Math.random() * 3.5;
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("d", `M0 ${-s} L${s*0.35} ${-s*0.35} L${s} 0 L${s*0.35} ${s*0.35} L0 ${s} L${-s*0.35} ${s*0.35} L${-s} 0 L${-s*0.35} ${-s*0.35} Z`);
+        p.setAttribute("fill", cols[i % cols.length]);
+        fx.appendChild(p);
+        gsap.fromTo(p, { x: cx, y: cy, scale: 0.2, opacity: 1 }, { x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, scale: 1, rotation: 110, opacity: 0, duration: 0.55, ease: "power2.out", onComplete: () => p.remove() });
+      }
     }
 
-    document.querySelectorAll(".nav-btn").forEach(btn => {
-      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-    });
-    document.getElementById("topBalanceBtn").addEventListener("click", () => switchTab("Wallet"));
+    const lx = gsap.quickTo(eLG, "x", { duration: 0.24, ease: "power3.out" }), ly = gsap.quickTo(eLG, "y", { duration: 0.24, ease: "power3.out" });
+    const rx = gsap.quickTo(eRG, "x", { duration: 0.24, ease: "power3.out" }), ry = gsap.quickTo(eRG, "y", { duration: 0.24, ease: "power3.out" });
+    const track = (x, y) => {
+      if (st.checkout || st.reacting) return;
+      const r = rBox.getBoundingClientRect();
+      const dx = Math.max(-1, Math.min(1, (x - (r.left + r.width / 2)) / (window.innerWidth * 0.45)));
+      const dy = Math.max(-1, Math.min(1, (y - (r.top + r.height / 2)) / (window.innerHeight * 0.45)));
+      lx(dx * 13); ly(dy * 10); rx(dx * 13); ry(dy * 10);
+    };
+    window.addEventListener("pointermove", e => track(e.clientX, e.clientY));
+    window.addEventListener("touchmove", e => { if (e.touches[0]) track(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
 
-    // --- АНИМАЦИИ ВЕКТОРНОГО РОБОТА (ПО ТВОЕМУ ЛОГОТИПУ) ---
-    const robotBox = document.getElementById("robotBox");
-    const robotBody = document.getElementById("robotBody");
-    const eyeLeft = document.getElementById("eyeLeft");
-    const eyeRight = document.getElementById("eyeRight");
-    const eyeLeftGroup = document.getElementById("eyeLeftGroup");
-    const eyeRightGroup = document.getElementById("eyeRightGroup");
-    const goldStar = document.getElementById("goldStar");
-    const robotHint = document.getElementById("robotHint");
-
-    gsap.set([eyeLeft, eyeRight], { transformOrigin: "50% 50%" });
-    gsap.set(robotBody, { transformOrigin: "50% 50%" });
-
-    // Лёгкое дыхание
-    gsap.to(robotBody, { y: -5, duration: 2.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
-
-    // Плавный трекинг глаз за пальцем / курсором
-    const lx = gsap.quickTo(eyeLeftGroup, "x", { duration: 0.25, ease: "power3.out" });
-    const ly = gsap.quickTo(eyeLeftGroup, "y", { duration: 0.25, ease: "power3.out" });
-    const rx = gsap.quickTo(eyeRightGroup, "x", { duration: 0.25, ease: "power3.out" });
-    const ry = gsap.quickTo(eyeRightGroup, "y", { duration: 0.25, ease: "power3.out" });
-
-    function trackPointer(cx, cy) {
-      if (state.isCheckoutMode || state.isReacting) return;
-      const rect = robotBox.getBoundingClientRect();
-      const dx = Math.max(-1, Math.min(1, (cx - (rect.left + rect.width / 2)) / (window.innerWidth * 0.45)));
-      const dy = Math.max(-1, Math.min(1, (cy - (rect.top + rect.height / 2)) / (window.innerHeight * 0.45)));
-      lx(dx * 12); ly(dy * 10);
-      rx(dx * 12); ry(dy * 10);
-    }
-    window.addEventListener("pointermove", e => trackPointer(e.clientX, e.clientY));
-    window.addEventListener("touchmove", e => { if (e.touches[0]) trackPointer(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-
-    // Естественное моргание
-    function scheduleBlink() {
+    (function blinkLoop() {
       setTimeout(() => {
-        if (!state.isCheckoutMode && !state.isReacting) {
-          gsap.timeline()
-            .to([eyeLeft, eyeRight], { scaleY: 0.12, duration: 0.08, ease: "power2.in" })
-            .to([eyeLeft, eyeRight], { scaleY: 1, duration: 0.12, ease: "power2.out" });
-        }
-        scheduleBlink();
+        if (!st.checkout && !st.reacting) gsap.timeline().to([eL, eR], { scaleY: 0.1, duration: 0.08 }).to([eL, eR], { scaleY: 1, duration: 0.12 });
+        blinkLoop();
       }, 2400 + Math.random() * 2800);
-    }
-    scheduleBlink();
+    })();
 
-    // 5 чистых сеньор-реакций по тапу
-    const reactions = [
-      () => {
-        robotHint.textContent = "Готов к мгновенной оплате";
-        return gsap.timeline()
-          .to(goldStar, { rotation: "+=180", scale: 1.25, duration: 0.32, ease: "back.out(2)" })
-          .to([eyeLeft, eyeRight], { scaleY: 0.45, scaleX: 1.12, duration: 0.18 }, 0)
-          .to(goldStar, { scale: 1, duration: 0.25 })
-          .to([eyeLeft, eyeRight], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<");
-      },
-      () => {
-        robotHint.textContent = "Подмигнул • Отсканируй QR";
-        return gsap.timeline()
-          .to(robotBody, { rotation: 5, duration: 0.18, ease: "power2.out" })
-          .to(eyeRight, { scaleY: 0.1, duration: 0.1 }, 0)
-          .to(eyeLeft, { scale: 1.15, duration: 0.15 }, 0)
-          .to(eyeRight, { scaleY: 1, duration: 0.14 }, "+=0.3")
-          .to(robotBody, { rotation: 0, duration: 0.35, ease: "elastic.out(1, 0.5)" }, "<")
-          .to(eyeLeft, { scale: 1, duration: 0.2 }, "<");
-      },
-      () => {
-        robotHint.textContent = "Проверяю входящие сигналы...";
-        return gsap.timeline()
-          .to([eyeLeftGroup, eyeRightGroup], { x: -14, y: -4, duration: 0.15 })
-          .to([eyeLeftGroup, eyeRightGroup], { x: 14, y: -4, duration: 0.22 }, "+=0.08")
-          .to([eyeLeftGroup, eyeRightGroup], { x: 0, y: 0, duration: 0.18 }, "+=0.08");
-      },
-      () => {
-        robotHint.textContent = "Ого! Баланс под защитой";
-        return gsap.timeline()
-          .to(robotBody, { scale: 1.07, duration: 0.15, ease: "power2.out" })
-          .to([eyeLeft, eyeRight], { scaleY: 1.45, scaleX: 0.85, duration: 0.15 }, 0)
-          .to(robotBody, { scale: 1, duration: 0.4, ease: "elastic.out(1, 0.45)" }, "+=0.22")
-          .to([eyeLeft, eyeRight], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<");
-      },
-      () => {
-        robotHint.textContent = "Звезда активирована";
-        return gsap.timeline()
-          .to([eyeLeft, eyeRight], { fill: "#F4B223", scale: 1.12, duration: 0.2 })
-          .to(goldStar, { rotation: "+=360", scale: 1.3, duration: 0.5, ease: "power2.inOut" }, 0)
-          .to([eyeLeft, eyeRight], { fill: "#00C4E0", scale: 1, duration: 0.3 }, "+=0.1")
-          .to(goldStar, { scale: 1, duration: 0.25 }, "<");
-      }
+    const reacts = [
+      () => { Snd.happy(); sparks(); hint.textContent = "Готов к быстрой оплате"; return gsap.timeline().to(rBody, { y: -14, scale: 1.05, duration: 0.18 }).to(star, { rotation: "+=180", scale: 1.3, duration: 0.34, ease: "back.out(2)" }, 0).to([eL, eR], { scaleY: 0.42, scaleX: 1.15, duration: 0.18 }, 0).to(rBody, { y: -6, scale: 1, duration: 0.38, ease: "elastic.out(1,0.45)" }).to(star, { scale: 1, duration: 0.25 }, "<").to([eL, eR], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<"); },
+      () => { Snd.wink(); hint.textContent = "Отсканируй QR для оплаты"; return gsap.timeline().to(rBody, { rotation: 6, duration: 0.18 }).to(eR, { scaleY: 0.1, duration: 0.1 }, 0).to(eL, { scale: 1.18, duration: 0.15 }, 0).to(eR, { scaleY: 1, duration: 0.14 }, "+=0.3").to(rBody, { rotation: 0, duration: 0.36, ease: "elastic.out(1,0.5)" }, "<").to(eL, { scale: 1, duration: 0.2 }, "<"); },
+      () => { Snd.scan(); hint.textContent = "Проверяю входящие сигналы..."; return gsap.timeline().to([eLG, eRG], { x: -15, y: -3, duration: 0.16 }).to(rBody, { rotation: -4, duration: 0.16 }, "<").to([eLG, eRG], { x: 15, y: -3, duration: 0.22 }, "+=0.08").to(rBody, { rotation: 4, duration: 0.22 }, "<").to([eLG, eRG], { x: 0, y: 0, duration: 0.18 }, "+=0.08").to(rBody, { rotation: 0, duration: 0.24 }, "<"); },
+      () => { Snd.surprise(); hint.textContent = "Ого! Щекотно же"; return gsap.timeline().to(rBody, { scale: 1.09, y: -16, duration: 0.15 }).to([eL, eR], { scaleY: 1.5, scaleX: 0.82, duration: 0.15 }, 0).to(rBody, { scale: 1, y: -6, duration: 0.42, ease: "bounce.out" }, "+=0.22").to([eL, eR], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<"); },
+      () => { Snd.star(); sparks(120, 88, 10); hint.textContent = "Золотой режим RoboPay"; return gsap.timeline().to([eL, eR], { fill: "#F4B223", scale: 1.12, duration: 0.2 }).to(frame, { stroke: "#F4B223", duration: 0.2 }, "<").to(star, { rotation: "+=360", scale: 1.38, duration: 0.55 }, 0).to([eL, eR], { fill: "#00C4E0", scale: 1, duration: 0.3 }, "+=0.12").to(frame, { stroke: "#00C4E0", duration: 0.3 }, "<").to(star, { scale: 1, duration: 0.25 }, "<"); },
+      () => { Snd.bounce(); hint.textContent = "Рад тебя видеть!"; return gsap.timeline().to(rBody, { y: -22, duration: 0.15 }).to(rBody, { y: -4, duration: 0.13 }).to(rBody, { y: -15, duration: 0.13 }).to(rBody, { y: -6, duration: 0.26, ease: "bounce.out" }); },
+      () => { Snd.sleepy(); hint.textContent = "Жду новых счетов и переводов"; return gsap.timeline().to([eL, eR], { scaleY: 0.24, duration: 0.26 }).to(rBody, { rotation: -5, y: 0, duration: 0.28 }, "<").to([eL, eR], { scaleY: 1, duration: 0.22 }, "+=0.35").to(rBody, { rotation: 0, y: -6, duration: 0.28 }, "<"); }
     ];
-
-    robotBox.addEventListener("click", () => {
-      if (state.isCheckoutMode || state.isReacting) return;
-      state.isReacting = true;
-      tg?.HapticFeedback?.impactOccurred("light");
-      let idx;
-      do { idx = Math.floor(Math.random() * reactions.length); } while (idx === state.lastReaction);
-      state.lastReaction = idx;
-      reactions[idx]().eventCallback("onComplete", () => { state.isReacting = false; });
+    rBox.addEventListener("click", () => {
+      if (st.checkout || st.reacting) return;
+      st.reacting = true; tg?.HapticFeedback?.impactOccurred("light");
+      let i; do { i = Math.floor(Math.random() * reacts.length); } while (i === st.lastReact);
+      st.lastReact = i;
+      reacts[i]().eventCallback("onComplete", () => { st.reacting = false; });
     });
 
-    // --- МОРФИНГ РОБОТА В ЧЕКАУТ ---
-    function enterCheckout(order) {
-      state.isCheckoutMode = true;
-      state.currentOrder = order;
-      switchTab("Terminal");
+    // --- ЧЕКАУТ ---
+    function enterCheckout(o) {
+      st.checkout = true; st.order = o; Snd.morph(); switchTab("Terminal");
+      document.getElementById("coMerchant").textContent = o.merchant_title;
+      document.getElementById("coOrderId").textContent = `#${o.order_id.toUpperCase()}`;
+      document.getElementById("coTitle").textContent = o.title;
+      document.getElementById("coDesc").textContent = o.description;
+      document.getElementById("coAmt").textContent = o.amount_rp;
+      const b = st.user?.wallet_balance ?? 0;
+      document.getElementById("coUserBal").textContent = `${b} RP`;
+      const btn = document.getElementById("coPayBtn");
+      btn.textContent = b < o.amount_rp ? `Пополнить баланс (+${o.amount_rp - b} RP)` : `Оплатить ${o.amount_rp} RP`;
+      btn.dataset.mode = b < o.amount_rp ? "topup" : "pay";
 
-      document.getElementById("coMerchant").textContent = order.merchant_title;
-      document.getElementById("coOrderId").textContent = `#${order.order_id.toUpperCase()}`;
-      document.getElementById("coTitle").textContent = order.title;
-      document.getElementById("coDesc").textContent = order.description;
-      document.getElementById("coAmount").textContent = order.amount_rp;
-
-      const userBal = state.user?.wallet_balance ?? 0;
-      document.getElementById("coUserBal").textContent = `${userBal} RP`;
-
-      const payBtn = document.getElementById("coPayBtn");
-      if (userBal < order.amount_rp) {
-        payBtn.textContent = `Пополнить кошелёк (не хватает ${order.amount_rp - userBal} RP)`;
-        payBtn.dataset.mode = "topup";
-      } else {
-        payBtn.textContent = `Оплатить ${order.amount_rp} RP`;
-        payBtn.dataset.mode = "pay";
-      }
-
-      document.getElementById("checkoutFormState").style.display = "block";
-      document.getElementById("checkoutSuccessState").style.display = "none";
-      document.getElementById("terminalActions").style.display = "none";
-
-      const sheet = document.getElementById("checkoutSheet");
-      sheet.style.display = "block";
-
-      const tl = gsap.timeline();
-      // 1. Взгляд ровно по центру, вспышка звезды
-      tl.to([eyeLeftGroup, eyeRightGroup], { x: 0, y: 0, duration: 0.2 })
-        .to(goldStar, { rotation: "+=90", scale: 1.25, duration: 0.25, ease: "back.out(2)" }, "<")
-        // 2. Робот аккуратно сжимается вверх и исчезает
-        .to(robotBox, { scale: 0.72, y: -30, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => { robotBox.style.display = "none"; } }, "+=0.05")
-        // 3. Выезжает чистая белая карточка оплаты
-        .to(sheet, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "power3.out" }, "-=0.05");
+      document.getElementById("coForm").style.display = "block";
+      document.getElementById("coSuccess").style.display = "none";
+      document.getElementById("termActions").style.display = "none";
+      const sh = document.getElementById("checkoutSheet");
+      sh.style.display = "block";
+      gsap.timeline()
+        .to([eLG, eRG], { x: 0, y: 0, duration: 0.18 })
+        .to(star, { rotation: "+=180", scale: 1.3, duration: 0.26, ease: "back.out(2)" }, "<")
+        .to(rBox, { scale: 0.72, y: -30, opacity: 0, duration: 0.28, ease: "power2.in", onComplete: () => { rBox.style.display = "none"; } }, "+=0.04")
+        .to(sh, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" }, "-=0.04");
     }
 
     function exitCheckout() {
-      state.isCheckoutMode = false;
-      state.currentOrder = null;
-      const sheet = document.getElementById("checkoutSheet");
-      gsap.to(sheet, {
-        opacity: 0, y: 18, scale: 0.96, duration: 0.22,
+      st.checkout = false; st.order = null;
+      const sh = document.getElementById("checkoutSheet");
+      gsap.to(sh, {
+        opacity: 0, y: 18, scale: 0.96, duration: 0.2,
         onComplete: () => {
-          sheet.style.display = "none";
-          robotBox.style.display = "flex";
-          document.getElementById("terminalActions").style.display = "flex";
-          gsap.fromTo(robotBox, { opacity: 0, scale: 0.85, y: -12 }, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: "power2.out" });
-          gsap.set(goldStar, { scale: 1 });
+          sh.style.display = "none"; rBox.style.display = "flex"; document.getElementById("termActions").style.display = "grid";
+          gsap.fromTo(rBox, { opacity: 0, scale: 0.85, y: -10 }, { opacity: 1, scale: 1, y: 0, duration: 0.32 });
+          gsap.set(star, { scale: 1 });
         }
       });
     }
-
     document.getElementById("coCancelBtn").addEventListener("click", exitCheckout);
     document.getElementById("coDoneBtn").addEventListener("click", exitCheckout);
 
-    // Оплата счёта с анимацией галочки
-    document.getElementById("coPayBtn").addEventListener("click", async (e) => {
+    document.getElementById("coPayBtn").addEventListener("click", async e => {
       const btn = e.currentTarget;
       if (btn.dataset.mode === "topup") {
-        document.getElementById("topupAmtInput").value = Math.max(1, state.currentOrder.amount_rp - (state.user?.wallet_balance ?? 0));
-        openModal("topupModal");
-        return;
+        document.getElementById("topAmt").value = Math.min(100, Math.max(1, st.order.amount_rp - (st.user?.wallet_balance ?? 0)));
+        openModal("topupModal"); return;
       }
-
-      btn.disabled = true;
-      btn.textContent = "Проводим платёж...";
+      btn.disabled = true; btn.textContent = "Проводим платёж...";
       try {
-        const res = await api(`/api/v1/orders/${encodeURIComponent(state.currentOrder.order_id)}/pay`, { method: "POST" });
-        tg?.HapticFeedback?.notificationOccurred("success");
-
-        document.getElementById("checkoutFormState").style.display = "none";
-        const succ = document.getElementById("checkoutSuccessState");
-        succ.style.display = "flex";
-        document.getElementById("coSuccessSub").textContent = `Списано ${state.currentOrder.amount_rp} RP • Остаток: ${res.wallet_balance} RP`;
-
-        gsap.fromTo("#successCheckPath", { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.55, ease: "power2.out" });
-        gsap.fromTo(".success-circle", { scale: 0.75 }, { scale: 1, duration: 0.45, ease: "back.out(2)" });
-
+        const r = await api(`/api/v1/orders/${encodeURIComponent(st.order.order_id)}/pay`, { method: "POST" });
+        Snd.ok(); tg?.HapticFeedback?.notificationOccurred("success");
+        document.getElementById("coForm").style.display = "none";
+        document.getElementById("coSuccess").style.display = "flex";
+        document.getElementById("coSuccessSub").textContent = `Списано ${st.order.amount_rp} RP • Остаток: ${r.wallet_balance} RP`;
+        gsap.fromTo("#chkPath", { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.5, ease: "power2.out" });
         await loadProfile();
-      } catch (err) {
-        showToast(err.message);
-        tg?.HapticFeedback?.notificationOccurred("error");
-      } finally {
-        btn.disabled = false;
-      }
+      } catch (err) { Snd.err(); toast(err.message); }
+      finally { btn.disabled = false; }
     });
 
-    // --- QR-СКАНЕР И ГЕНЕРАЦИЯ QR ---
-    function renderBrandedQr(containerId, text) {
-      const el = document.getElementById(containerId);
-      el.innerHTML = "";
-      const qr = new QRCodeStyling({
-        width: 196,
-        height: 196,
-        data: text,
-        margin: 4,
-        dotsOptions: { color: "#0f172a", type: "rounded" },
+    // --- QR ---
+    function drawQr(id, text) {
+      const el = document.getElementById(id); el.innerHTML = "";
+      new QRCodeStyling({
+        width: 190, height: 190, data: text, margin: 4,
+        dotsOptions: { color: "#0b1220", type: "rounded" },
         cornersSquareOptions: { color: "#00c4e0", type: "extra-rounded" },
         cornersDotOptions: { color: "#f4b223", type: "dot" },
         backgroundOptions: { color: "#ffffff" }
-      });
-      qr.append(el);
-    }
-
-    function handleScannedPayload(raw) {
-      const str = (raw || "").trim();
-      // 1. Перевод по личному QR (rp_uid:123456)
-      if (str.startsWith("rp_uid:")) {
-        const uid = str.replace("rp_uid:", "").trim();
-        document.getElementById("trToInput").value = uid;
-        openModal("transferModal");
-        return true;
-      }
-      // 2. Счёт оплаты (https://t.me/...start=pay_ord_... или ord_...)
-      const match = str.match(/ord_[a-f0-9]+/i);
-      if (match) {
-        loadOrderAndCheckout(match[0]);
-        return true;
-      }
-      showToast("Неизвестный QR-код");
-      return false;
+      }).append(el);
     }
 
     document.getElementById("btnScanQr").addEventListener("click", () => {
-      if (tg?.showScanQrPopup) {
-        tg.showScanQrPopup({ text: "Наведите камеру на QR-код RoboPay" }, (text) => {
-          if (handleScannedPayload(text)) {
-            tg.closeScanQrPopup();
-            return true;
-          }
-        });
-      } else {
-        showToast("Сканер доступен внутри мобильного Telegram");
-      }
+      Snd.tap();
+      if (!tg?.showScanQrPopup) { toast("Сканер доступен в мобильном Telegram"); return; }
+      tg.showScanQrPopup({ text: "Наведите камеру на QR RoboPay" }, raw => {
+        const s = (raw || "").trim();
+        if (s.startsWith("rp_uid:")) {
+          Snd.scan(); document.getElementById("trTo").value = s.replace("rp_uid:", "").trim();
+          tg.closeScanQrPopup(); openModal("transferModal"); return true;
+        }
+        const m = s.match(/ord_[a-f0-9]+/i);
+        if (m) { Snd.scan(); tg.closeScanQrPopup(); loadOrder(m[0]); return true; }
+        Snd.err(); toast("Неизвестный QR-код");
+      });
     });
 
-    document.getElementById("btnGoTransfer").addEventListener("click", () => openModal("transferModal"));
-    document.getElementById("openTopupModal").addEventListener("click", () => openModal("topupModal"));
-    document.getElementById("openTransferModal").addEventListener("click", () => openModal("transferModal"));
+    // --- КНОПКИ МОДАЛОК ---
+    document.getElementById("btnQuickTopup").addEventListener("click", () => openModal("topupModal"));
+    document.getElementById("openTopupBtn").addEventListener("click", () => openModal("topupModal"));
+    document.getElementById("openWithdrawBtn").addEventListener("click", () => openModal("withdrawModal"));
+    document.getElementById("openTransferBtn").addEventListener("click", () => openModal("transferModal"));
 
-    // Отправка заявки на пополнение
-    document.getElementById("submitTopupBtn").addEventListener("click", async () => {
-      const amount = parseInt(document.getElementById("topupAmtInput").value, 10);
-      const comment = document.getElementById("topupCommentInput").value.trim();
-      if (!amount || amount < 1) { showToast("Укажите корректную сумму"); return; }
+    document.getElementById("ownerGiftLink").addEventListener("click", e => {
+      e.preventDefault(); Snd.star();
+      if (tg?.openTelegramLink) tg.openTelegramLink(st.ownerUrl); else window.open(st.ownerUrl, "_blank");
+    });
 
-      const btn = document.getElementById("submitTopupBtn");
-      btn.disabled = true;
+    document.querySelectorAll("#topupChips .chip").forEach(c => c.addEventListener("click", () => {
+      Snd.tap();
+      document.querySelectorAll("#topupChips .chip").forEach(x => x.classList.remove("active"));
+      c.classList.add("active");
+      document.getElementById("topAmt").value = c.dataset.amt;
+    }));
+
+    document.getElementById("submitTopupBtn").addEventListener("click", async e => {
+      const amount = parseInt(document.getElementById("topAmt").value, 10);
+      const comment = document.getElementById("topComm").value.trim();
+      if (!amount || amount < 1 || amount > 100) { Snd.err(); toast("Сумма подарка от 1 до 100 ⭐"); return; }
+      const b = e.currentTarget; b.disabled = true;
       try {
         await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment }) });
-        closeModal("topupModal");
-        document.getElementById("topupAmtInput").value = "";
-        document.getElementById("topupCommentInput").value = "";
-        showToast("Заявка отправлена владельцу");
-        await loadProfile();
-      } catch (err) {
-        showToast(err.message);
-      } finally {
-        btn.disabled = false;
-      }
+        Snd.ok(); closeModal("topupModal");
+        document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
+        toast("Заявка на пополнение отправлена"); await loadProfile();
+      } catch (err) { Snd.err(); toast(err.message); } finally { b.disabled = false; }
     });
 
-    // Перевод RP другому пользователю
-    document.getElementById("submitTransferBtn").addEventListener("click", async () => {
-      const to_tg_id = parseInt(document.getElementById("trToInput").value, 10);
-      const amount = parseInt(document.getElementById("trAmtInput").value, 10);
-      const comment = document.getElementById("trCommentInput").value.trim();
-      if (!to_tg_id || !amount || amount < 1) { showToast("Заполните ID и сумму"); return; }
+    // Выбор подарка для вывода
+    function renderTiers() {
+      const grid = document.getElementById("tierGrid");
+      grid.innerHTML = st.tiers.map(t => `
+        <button class="tier-card ${st.selectedGift === t.gift_stars ? "active" : ""}" data-gift="${t.gift_stars}">
+          <div class="tier-gift">🎁 ${t.gift_stars} ⭐</div>
+          <div class="tier-cost tabular">Цена: ${t.cost_rp} RP</div>
+          <div class="tier-rec">Получите ~${t.receive_stars} ⭐</div>
+        </button>
+      `).join("");
+      grid.querySelectorAll(".tier-card").forEach(card => card.addEventListener("click", () => {
+        Snd.tap();
+        st.selectedGift = parseInt(card.dataset.gift, 10);
+        renderTiers();
+        const t = st.tiers.find(x => x.gift_stars === st.selectedGift);
+        const bal = st.user?.wallet_balance ?? 0;
+        const ok = bal >= t.cost_rp;
+        document.getElementById("wdrSummary").innerHTML =
+          `Подарок <strong>${t.gift_stars} ⭐</strong> → получите <strong>~${t.receive_stars} ⭐</strong> в ТГ<br>` +
+          `Спишется: <strong>${t.cost_rp} RP</strong> (комиссия ${t.fee_rp} RP) • Баланс: ${bal} RP` +
+          (ok ? "" : `<br><span style="color:var(--red);font-weight:600;">Не хватает ${t.cost_rp - bal} RP</span>`);
+        document.getElementById("submitWdrBtn").disabled = !ok;
+      }));
+    }
 
-      const btn = document.getElementById("submitTransferBtn");
-      btn.disabled = true;
+    document.getElementById("submitWdrBtn").addEventListener("click", async e => {
+      if (!st.selectedGift) return;
+      const b = e.currentTarget; b.disabled = true;
       try {
-        await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment }) });
-        closeModal("transferModal");
-        document.getElementById("trAmtInput").value = "";
-        document.getElementById("trCommentInput").value = "";
-        tg?.HapticFeedback?.notificationOccurred("success");
-        showToast(`Переведено ${amount} RP`);
-        await loadProfile();
-      } catch (err) {
-        showToast(err.message);
-      } finally {
-        btn.disabled = false;
-      }
+        await api("/api/v1/withdraw", { method: "POST", body: JSON.stringify({ gift_stars: st.selectedGift, note: document.getElementById("wdrNote").value.trim() }) });
+        Snd.ok(); closeModal("withdrawModal"); document.getElementById("wdrNote").value = "";
+        toast("Заявка на вывод отправлена владельцу"); await loadProfile();
+      } catch (err) { Snd.err(); toast(err.message); } finally { b.disabled = false; }
     });
 
-    // Создание QR-счёта прямо в Mini App
-    document.getElementById("createInvQrBtn").addEventListener("click", async () => {
-      const merchant_id = document.getElementById("invProjectSelect").value;
-      const title = document.getElementById("invTitleInput").value.trim();
-      const amount = parseInt(document.getElementById("invAmountInput").value, 10);
-      if (!merchant_id || !title || !amount) { showToast("Заполните все поля"); return; }
+    // Превью комиссии перевода
+    document.getElementById("trAmt").addEventListener("input", e => {
+      const a = parseInt(e.target.value, 10) || 0;
+      const fee = a > 0 ? Math.ceil(a * st.commRate) : 0;
+      const net = Math.max(0, a - fee);
+      document.getElementById("trPreview").innerHTML = a > 0
+        ? `Комиссия (${Math.round(st.commRate * 100)}%): <strong>${fee} RP</strong> • Получатель получит: <strong>${net} RP</strong>`
+        : `Комиссия перевода: ${Math.round(st.commRate * 100)}%`;
+    });
 
-      const btn = document.getElementById("createInvQrBtn");
-      btn.disabled = true;
+    document.getElementById("submitTrBtn").addEventListener("click", async e => {
+      const to_tg_id = parseInt(document.getElementById("trTo").value, 10);
+      const amount = parseInt(document.getElementById("trAmt").value, 10);
+      if (!to_tg_id || !amount || amount < 1) { Snd.err(); toast("Заполните ID и сумму"); return; }
+      const b = e.currentTarget; b.disabled = true;
       try {
-        const order = await api("/api/v1/webapp/invoices", {
-          method: "POST",
-          body: JSON.stringify({ merchant_id, title, amount })
-        });
-        state.lastCreatedLink = order.checkout_deeplink;
-        document.getElementById("generatedInvResult").style.display = "block";
-        renderBrandedQr("invoiceQrContainer", order.qr_payload);
-        showToast("QR-счёт создан");
-      } catch (err) {
-        showToast(err.message);
-      } finally {
-        btn.disabled = false;
-      }
+        const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment: document.getElementById("trComm").value.trim() }) });
+        Snd.ok(); closeModal("transferModal"); document.getElementById("trAmt").value = ""; document.getElementById("trComm").value = "";
+        toast(`Отправлено (получателю ${r.net_rp} RP)`); await loadProfile();
+      } catch (err) { Snd.err(); toast(err.message); } finally { b.disabled = false; }
     });
 
-    document.getElementById("copyInvLinkBtn").addEventListener("click", () => {
-      if (!state.lastCreatedLink) return;
-      navigator.clipboard?.writeText(state.lastCreatedLink);
-      showToast("Ссылка скопирована");
+    // Создание QR-счёта
+    document.getElementById("createInvBtn").addEventListener("click", async e => {
+      const merchant_id = document.getElementById("invProj").value, title = document.getElementById("invTitle").value.trim(), amount = parseInt(document.getElementById("invAmt").value, 10);
+      if (!merchant_id || !title || !amount) { Snd.err(); toast("Заполните все поля"); return; }
+      const b = e.currentTarget; b.disabled = true;
+      try {
+        const o = await api("/api/v1/webapp/invoices", { method: "POST", body: JSON.stringify({ merchant_id, title, amount }) });
+        Snd.star(); st.lastLink = o.checkout_deeplink;
+        document.getElementById("invRes").style.display = "block"; drawQr("invQrBox", o.qr_payload); toast("QR-счёт создан");
+      } catch (err) { Snd.err(); toast(err.message); } finally { b.disabled = false; }
     });
+    document.getElementById("copyInvBtn").addEventListener("click", () => { Snd.tap(); navigator.clipboard?.writeText(st.lastLink); toast("Ссылка скопирована"); });
+    document.getElementById("copyIdBtn").addEventListener("click", () => { if (!st.user) return; Snd.tap(); navigator.clipboard?.writeText(String(st.user.tg_id)); toast("ID скопирован"); });
 
-    document.getElementById("copyIdBtn").addEventListener("click", () => {
-      if (!state.user) return;
-      navigator.clipboard?.writeText(String(state.user.tg_id));
-      showToast("Ваш ID скопирован");
-    });
-
-    // --- ЗАГРУЗКА ДАННЫХ И ЗАКАЗА ---
+    // --- ЗАГРУЗКА ---
     async function loadProfile() {
       if (!INIT_DATA) return;
       try {
-        const data = await api("/api/v1/me");
-        state.user = data.user;
-        state.ownerUsername = data.owner_username;
-        state.projects = data.projects;
-        state.topups = data.topups;
-        state.history = data.history;
+        const d = await api("/api/v1/me");
+        st.user = d.user; st.ownerUrl = d.owner_url; st.commRate = d.commission_rate; st.wdrRate = d.withdraw_fee_rate; st.tiers = d.gift_tiers;
+        animBal(d.user.wallet_balance);
+        document.getElementById("ownerNickTxt").textContent = d.owner_username;
+        document.getElementById("ownerUrlTxt").textContent = d.owner_url;
+        document.getElementById("ownerGiftLink").href = d.owner_url;
+        document.getElementById("wdrFeePct").textContent = `${Math.round(d.withdraw_fee_rate * 100)}%`;
+        document.getElementById("trPreview").textContent = `Комиссия перевода: ${Math.round(d.commission_rate * 100)}%`;
+        document.getElementById("myIdLbl").textContent = `ID: ${d.user.tg_id}`;
+        drawQr("myQrBox", `rp_uid:${d.user.tg_id}`);
+        renderTiers();
 
-        document.getElementById("topBalanceVal").textContent = data.user.wallet_balance;
-        document.getElementById("walletBalBig").textContent = data.user.wallet_balance;
-        document.getElementById("ownerUsernameTxt").textContent = data.owner_username;
-        document.getElementById("myTgIdLabel").textContent = `ID: ${data.user.tg_id}`;
-        renderBrandedQr("myQrContainer", `rp_uid:${data.user.tg_id}`);
+        const hasP = d.projects.length > 0;
+        document.getElementById("noProjNote").style.display = hasP ? "none" : "block";
+        document.getElementById("invBox").style.display = hasP ? "block" : "none";
+        if (hasP) document.getElementById("invProj").innerHTML = d.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
 
-        // Проекты для QR-счёта
-        const sel = document.getElementById("invProjectSelect");
-        if (data.projects.length === 0) {
-          document.getElementById("noProjectsNote").style.display = "block";
-          document.getElementById("invoiceCreatorBox").style.display = "none";
-        } else {
-          document.getElementById("noProjectsNote").style.display = "none";
-          document.getElementById("invoiceCreatorBox").style.display = "block";
-          sel.innerHTML = data.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
-        }
-
-        // Заявки на пополнение
-        const tList = document.getElementById("topupsList");
-        if (data.topups.length) {
-          const labels = { pending: ["Ожидает", "badge-pending"], approved: ["Одобрено", "badge-approved"], rejected: ["Отклонено", "badge-rejected"] };
-          tList.innerHTML = data.topups.map(r => {
-            const [lbl, cls] = labels[r.status] || [r.status, "badge-pending"];
-            return `<div class="tx-item">
-              <div><div class="tx-title">+${r.amount_rp} RP</div><div class="tx-sub">${r.request_id}</div></div>
-              <span class="${cls}">${lbl}</span>
-            </div>`;
+        const stMap = { pending: ["На проверке", "b-pending"], approved: ["Одобрено", "b-approved"], rejected: ["Отклонено", "b-rejected"] };
+        const reqs = [
+          ...d.topups.map(r => ({ ts: r.created_at, title: `Пополнение +${r.amount_rp} RP`, sub: r.request_id, status: r.status })),
+          ...d.withdrawals.map(r => ({ ts: r.created_at, title: `Вывод 🎁 ${r.gift_stars} ⭐ (-${r.cost_rp} RP)`, sub: `${r.request_id} • ~${r.receive_stars} ⭐`, status: r.status }))
+        ].sort((a, b) => (b.ts || "").localeCompare(a.ts || "")).slice(0, 8);
+        if (reqs.length) {
+          document.getElementById("reqList").innerHTML = reqs.map(r => {
+            const [lbl, cls] = stMap[r.status] || [r.status, "b-pending"];
+            return `<div class="tx-item"><div><div class="tx-title">${r.title}</div><div class="tx-sub">${r.sub}</div></div><span class="badge ${cls}">${lbl}</span></div>`;
           }).join("");
         }
 
-        // История операций
-        const hList = document.getElementById("historyList");
-        if (data.history.length) {
-          hList.innerHTML = data.history.map(h => `
+        if (d.history.length) {
+          document.getElementById("histList").innerHTML = d.history.map(h => `
             <div class="tx-item">
               <div><div class="tx-title">${h.title}</div><div class="tx-sub">${h.id}</div></div>
-              <div class="tx-amt tabular ${h.delta > 0 ? "tx-pos" : "tx-neg"}">${h.delta > 0 ? "+" : ""}${h.delta} RP</div>
+              <div class="tabular" style="font-weight:700;color:${h.delta > 0 ? "var(--green)" : "var(--ink)"};">${h.delta > 0 ? "+" : ""}${h.delta} RP</div>
             </div>
           `).join("");
         }
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
 
-    async function loadOrderAndCheckout(orderId) {
-      robotHint.textContent = "Загружаем счёт...";
+    async function loadOrder(id) {
+      hint.textContent = "Загружаем счёт...";
       try {
-        const order = await api(`/api/v1/orders/${encodeURIComponent(orderId)}`);
-        if (order.status === "paid") {
-          robotHint.textContent = "Этот счёт уже оплачен";
-          return;
-        }
-        setTimeout(() => enterCheckout(order), 320);
-      } catch (err) {
-        robotHint.textContent = "Счёт не найден";
-        showToast(err.message);
-      }
+        const o = await api(`/api/v1/orders/${encodeURIComponent(id)}`);
+        if (o.status === "paid") { hint.textContent = "Этот счёт уже оплачен"; return; }
+        setTimeout(() => enterCheckout(o), 300);
+      } catch (err) { Snd.err(); hint.textContent = "Счёт не найден"; toast(err.message); }
     }
 
     (async () => {
       await loadProfile();
-      if (window.location.hash === "#wallet") switchTab("Wallet");
-      const params = new URLSearchParams(window.location.search);
-      const orderId = tg?.initDataUnsafe?.start_param || params.get("order_id");
-      if (orderId) loadOrderAndCheckout(orderId);
+      if (location.hash === "#wallet") switchTab("Wallet");
+      const oid = tg?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get("order_id");
+      if (oid) loadOrder(oid);
     })();
   </script>
 </body>
