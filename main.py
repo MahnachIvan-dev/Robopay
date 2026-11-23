@@ -14,6 +14,7 @@ import uvicorn
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import (
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     LabeledPrice,
@@ -27,19 +28,23 @@ from pydantic import BaseModel, Field
 
 # --- КОНФИГУРАЦИЯ ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-# Публичный HTTPS-домен приложения (например, https://starpay.up.railway.app)
 PUBLIC_URL = os.getenv("PUBLIC_URL", "https://your-domain.up.railway.app").rstrip("/")
-# Короткое имя Mini App, зарегистрированное в @BotFather (/newapp)
 WEBAPP_SHORT_NAME = os.getenv("WEBAPP_SHORT_NAME", "pay")
-COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", "0.05"))  # 5% комиссия шлюза
+COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", "0.05"))
 DB_PATH = os.getenv("DB_PATH", "gateway.db")
+
+# ID приватного Telegram-канала для хранения БД и бэкапов (например, -1001234567890)
+DB_CHANNEL_ID = int(os.getenv("DB_CHANNEL_ID", "0"))
+# Твой личный Telegram ID для доступа к команде /backup
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 BOT_USERNAME = ""
+db_sync_lock = asyncio.Lock()
 
 
-# --- БАЗА ДАННЫХ (SQLite с WAL для безопасной конкурентности) ---
+# --- БАЗА ДАННЫХ И АТОМАРНЫЕ БЭКАПЫ ---
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -83,13 +88,76 @@ def init_db() -> None:
         )
 
 
+def create_atomic_snapshot(snapshot_path: str) -> None:
+    """Создаёт консистентную копию живой SQLite-базы без риска повреждения WAL."""
+    with get_db() as src, sqlite3.connect(snapshot_path) as dst:
+        src.backup(dst)
+
+
+async def restore_db_from_telegram() -> None:
+    """При запуске сервера скачивает актуальную БД из закреплённого сообщения ТГ-канала."""
+    if not DB_CHANNEL_ID:
+        print("[DB Sync] DB_CHANNEL_ID не задан — работаем с локальной БД.")
+        init_db()
+        return
+
+    try:
+        chat = await bot.get_chat(DB_CHANNEL_ID)
+        pinned = chat.pinned_message
+        if pinned and pinned.document:
+            await bot.download(pinned.document, destination=DB_PATH)
+            print(f"[DB Sync] База успешно восстановлена из канала (msg_id={pinned.message_id}).")
+            init_db()  # На случай добавления новых таблиц в будущих обновлениях
+            return
+    except Exception as e:
+        print(f"[DB Sync] Не удалось скачать БД из канала (возможно, первый запуск): {e}")
+
+    # Если канал пуст — создаём новую базу и сразу закрепляем стартовый файл
+    init_db()
+    await sync_db_to_telegram("Инициализация новой базы данных")
+
+
+async def sync_db_to_telegram(reason: str = "Авто-синхронизация") -> Optional[int]:
+    """Отправляет свежий снимок БД в ТГ-канал и закрепляет его как актуальный."""
+    if not DB_CHANNEL_ID:
+        return None
+
+    async with db_sync_lock:
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+        snapshot_path = f"backup_{timestamp}.db"
+        try:
+            create_atomic_snapshot(snapshot_path)
+            caption = (
+                f"🗄 <b>RoboPay DB Snapshot</b>\n"
+                f"• Событие: {reason}\n"
+                f"• Время (UTC): <code>{timestamp}</code>"
+            )
+            msg = await bot.send_document(
+                chat_id=DB_CHANNEL_ID,
+                document=FSInputFile(snapshot_path, filename="gateway.db"),
+                caption=caption,
+                parse_mode="HTML",
+            )
+            await bot.pin_chat_message(
+                chat_id=DB_CHANNEL_ID,
+                message_id=msg.message_id,
+                disable_notification=True,
+            )
+            return msg.message_id
+        except Exception as e:
+            print(f"[DB Sync Error] {e}")
+            return None
+        finally:
+            if os.path.exists(snapshot_path):
+                os.remove(snapshot_path)
+
+
 # --- ВЕБХУКИ И СИГНАЛЫ ---
 def sign_payload(secret_key: str, payload_bytes: bytes) -> str:
     return hmac.new(secret_key.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
 
 
 async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
-    # 1. Мгновенный Telegram-сигнал владельцу проекта в ЛС
     signal_text = (
         f"⚡ <b>Оплата получена ({merchant['title']})</b>\n\n"
         f"• Услуга: <b>{order['title']}</b>\n"
@@ -103,7 +171,6 @@ async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
     except Exception as e:
         print(f"[Telegram Signal Error] {e}")
 
-    # 2. Подписанный HTTP Webhook на сервер партнёра (если указан)
     if merchant.get("webhook_url"):
         event_data = {
             "event": "payment.succeeded",
@@ -134,7 +201,7 @@ async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
                     await asyncio.sleep(1.5 * (attempt + 1))
 
 
-# --- ЛОГИКА AIOGRAM 3 ---
+# --- КОМАНДЫ БОТА ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message) -> None:
     kb = InlineKeyboardMarkup(
@@ -149,10 +216,9 @@ async def cmd_start(message: types.Message) -> None:
     )
     await message.answer(
         "<b>RoboPay — платёжный шлюз для Telegram Stars (XTR)</b>\n\n"
-        "Подключайте красивый анимационный чекаут к своим ботам и сайтам:\n"
         "• <code>/new Название | https://ваш-вебхук</code> — создать проект и получить API-ключ\n"
-        "• <code>/balance</code> — проверить баланс и статистику\n\n"
-        "<i>Если вебхук не указан, бот будет присылать мгновенные сигналы об оплате прямо сюда.</i>",
+        "• <code>/balance</code> — проверить баланс и статистику\n"
+        "• <code>/backup</code> — принудительно сохранить слепок БД в канал",
         parse_mode="HTML",
         reply_markup=kb,
     )
@@ -186,13 +252,15 @@ async def cmd_new_project(message: types.Message) -> None:
             (merchant_id, message.from_user.id, title, api_key, webhook_url, now),
         )
 
+    # Синхронизируем БД в Telegram-канал после создания нового проекта
+    asyncio.create_task(sync_db_to_telegram(f"Новый проект: {title} ({merchant_id})"))
+
     await message.answer(
         f"✅ <b>Проект «{title}» зарегистрирован!</b>\n\n"
         f"• Merchant ID: <code>{merchant_id}</code>\n"
         f"• API Key: <code>{api_key}</code>\n"
         f"• Webhook: <code>{webhook_url or 'Только Telegram-сигналы'}</code>\n"
-        f"• Комиссия шлюза: <b>{int(COMMISSION_RATE * 100)}%</b>\n\n"
-        f"<i>Сохраните API-ключ: им подписываются исходящие вебхуки (заголовок X-StarPay-Signature).</i>",
+        f"• Комиссия шлюза: <b>{int(COMMISSION_RATE * 100)}%</b>",
         parse_mode="HTML",
     )
 
@@ -213,6 +281,18 @@ async def cmd_balance(message: types.Message) -> None:
     for r in rows:
         lines.append(f"• <b>{r['title']}</b> (<code>{r['merchant_id']}</code>): <b>{r['balance_stars']} ⭐</b>")
     await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@dp.message(Command("backup"))
+async def cmd_manual_backup(message: types.Message) -> None:
+    if ADMIN_ID and message.from_user.id != ADMIN_ID:
+        return
+
+    msg_id = await sync_db_to_telegram(f"Ручной бэкап от админа ({message.from_user.id})")
+    if msg_id:
+        await message.answer(f"✅ Слепок БД отправлен и закреплён в канале (ID сообщения: <code>{msg_id}</code>).", parse_mode="HTML")
+    else:
+        await message.answer("⚠️ Не удалось отправить бэкап. Проверьте <code>DB_CHANNEL_ID</code> и права бота в канале.", parse_mode="HTML")
 
 
 @dp.pre_checkout_query()
@@ -260,6 +340,8 @@ async def process_successful_payment(message: types.Message) -> None:
         )
 
     asyncio.create_task(dispatch_partner_notification(updated_order, merchant))
+    # Сразу фиксируем оплату в облачном ТГ-канале
+    asyncio.create_task(sync_db_to_telegram(f"Оплата {order_id} (+{updated_order['amount_stars']} ⭐)"))
 
 
 # --- FASTAPI REST API ---
@@ -273,7 +355,7 @@ class CreateInvoiceRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global BOT_USERNAME
-    init_db()
+    await restore_db_from_telegram()
     me = await bot.get_me()
     BOT_USERNAME = me.username
     polling_task = asyncio.create_task(dp.start_polling(bot))
@@ -308,7 +390,6 @@ async def create_invoice(req: CreateInvoiceRequest, x_api_key: str = Header(...)
     fee_stars = int(req.amount_stars * COMMISSION_RATE)
     net_stars = max(1, req.amount_stars - fee_stars)
 
-    # Генерация нативной ссылки оплаты в Telegram Stars (XTR)
     invoice_link = await bot.create_invoice_link(
         title=req.title,
         description=req.description,
