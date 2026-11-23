@@ -1,23 +1,29 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>RoboPay — Telegram Stars Terminal</title>
+  <title>RoboPay</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
   <style>
     :root {
-      --bg: #07090e;
-      --card: rgba(18, 24, 38, 0.85);
-      --border: rgba(56, 189, 248, 0.25);
-      --accent: #38bdf8;
-      --accent-glow: rgba(56, 189, 248, 0.45);
-      --success: #10b981;
-      --star: #fbbf24;
-      --text: #f8fafc;
-      --muted: #94a3b8;
+      --bg: #ffffff;
+      --surface: #f7f8fa;
+      --surface-hover: #eef1f5;
+      --border: #e6e8ec;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --subtle: #94a3b8;
+      --cyan: #00c4e0;
+      --cyan-dark: #009bb3;
+      --gold: #f4b223;
+      --green: #10b981;
+      --red: #ef4444;
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
     }
 
     * {
@@ -25,319 +31,631 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
-      user-select: none;
     }
 
     body {
-      background: radial-gradient(circle at 50% 30%, #111c33 0%, var(--bg) 72%);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      padding-bottom: 84px;
     }
 
-    .grid-bg {
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
-      background-size: 32px 32px;
-      pointer-events: none;
-      z-index: 0;
-    }
+    .tabular { font-variant-numeric: tabular-nums; }
 
-    .stage {
-      position: relative;
-      width: 100%;
-      max-width: 360px;
-      height: 440px;
+    /* Верхняя минималистичная шапка */
+    .topbar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      z-index: 1;
-    }
-
-    /* --- РОБОТ --- */
-    .robot-wrapper {
-      position: absolute;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      cursor: pointer;
-    }
-
-    .robot-head {
-      width: 224px;
-      height: 168px;
-      background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
-      border: 2px solid var(--border);
-      border-radius: 46px;
-      box-shadow:
-        0 20px 50px rgba(0, 0, 0, 0.65),
-        inset 0 2px 12px rgba(255, 255, 255, 0.08),
-        0 0 32px var(--accent-glow);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      transition: box-shadow 0.4s ease, border-color 0.4s ease;
-    }
-
-    .robot-head.success-state {
-      border-color: rgba(16, 185, 129, 0.65);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 42px rgba(16, 185, 129, 0.5);
-    }
-
-    .antenna {
-      position: absolute;
-      top: -22px;
-      width: 6px;
-      height: 20px;
-      background: #334155;
-      border-radius: 4px;
-    }
-    .antenna-bulb {
-      position: absolute;
-      top: -9px;
-      left: -4px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 14px var(--accent);
-    }
-
-    .visor {
-      width: 186px;
-      height: 128px;
-      background: #04070d;
-      border-radius: 32px;
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .eyes-row {
-      display: flex;
-      gap: 34px;
-      align-items: center;
-    }
-
-    .eye-socket {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: rgba(56, 189, 248, 0.07);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .pupil {
-      width: 24px;
-      height: 28px;
-      background: var(--accent);
-      border-radius: 12px;
-      box-shadow: 0 0 18px var(--accent);
-      position: relative;
-    }
-
-    .pupil::after {
-      content: "";
-      position: absolute;
-      top: 4px;
-      left: 5px;
-      width: 7px;
-      height: 7px;
-      background: #fff;
-      border-radius: 50%;
-      opacity: 0.9;
-    }
-
-    .eyelid {
-      position: absolute;
-      top: -100%;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #04070d;
-      z-index: 2;
-    }
-
-    .mouth {
-      width: 34px;
-      height: 6px;
-      background: var(--accent);
-      border-radius: 6px;
-      box-shadow: 0 0 10px var(--accent);
-      opacity: 0.9;
-    }
-
-    .status-pill {
-      margin-top: 24px;
-      padding: 8px 18px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.3px;
-      text-align: center;
-      transition: color 0.3s ease;
-    }
-
-    /* --- КАРТОЧКА ЧЕКА --- */
-    .receipt-card {
-      position: absolute;
-      width: 100%;
-      background: var(--card);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      padding: 24px;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.75) translateY(25px);
-    }
-
-    .receipt-header {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px dashed rgba(148, 163, 184, 0.22);
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
     }
 
-    .merchant-badge {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.12);
-      padding: 5px 10px;
-      border-radius: 8px;
-    }
-
-    .order-id-tag {
-      font-size: 11px;
-      color: var(--muted);
-      font-family: monospace;
-    }
-
-    .item-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 6px;
-      color: #fff;
-    }
-
-    .item-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.4;
-      margin-bottom: 22px;
-    }
-
-    .amount-box {
-      background: rgba(7, 9, 14, 0.65);
-      border: 1px solid rgba(251, 191, 36, 0.25);
-      border-radius: 18px;
-      padding: 16px;
+    .brand {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 22px;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
     }
 
-    .amount-label {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .amount-value {
-      font-size: 26px;
-      font-weight: 800;
-      color: var(--star);
-      display: flex;
+    .balance-chip {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-    }
-
-    .pay-btn {
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-      color: #fff;
-      font-size: 16px;
-      font-weight: 700;
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
       cursor: pointer;
-      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
-      transition: transform 0.15s ease;
     }
 
-    .pay-btn:active {
-      transform: scale(0.97);
+    .balance-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+
+    /* Экраны */
+    .view {
+      display: none;
+      padding: 20px;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    .view.active { display: block; }
+
+    /* --- ЭКРАН 1: ТЕРМИНАЛ С РОБОТОМ --- */
+    .terminal-stage {
+      min-height: calc(100vh - 180px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .robot-box {
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+    }
+
+    .robot-svg {
+      width: 224px;
+      height: 156px;
+      overflow: visible;
+    }
+
+    .robot-hint {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: center;
+      min-height: 20px;
+      transition: opacity 0.2s ease;
+    }
+
+    .quick-actions {
+      margin-top: 32px;
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    /* --- КАРТОЧКА ОПЛАТЫ (МОРФИНГ) --- */
+    .checkout-sheet {
+      display: none;
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+      opacity: 0;
+      transform: translateY(20px) scale(0.96);
+    }
+
+    .checkout-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: var(--subtle);
+    }
+
+    .checkout-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .checkout-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 20px;
+    }
+
+    .price-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 14px;
+    }
+
+    .price-label { font-size: 13px; color: var(--muted); }
+    .price-num { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+    .price-unit { font-size: 15px; font-weight: 700; color: var(--cyan-dark); margin-left: 3px; }
+
+    .wallet-inline {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      padding: 0 4px;
+    }
+
+    /* Анимация успеха оплаты */
+    .success-overlay {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .success-circle {
+      width: 72px;
+      height: 72px;
+      margin-bottom: 16px;
+    }
+
+    /* --- КОШЕЛЁК, QR И ФОРМЫ --- */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+
+    .card-soft {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .hero-balance-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .hero-balance {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin: 4px 0 18px;
+    }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .btn {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-primary { background: var(--ink); color: #ffffff; }
+    .btn-primary:hover { background: #1e293b; }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--ink);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface-hover); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      padding: 10px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 18px 0 10px 4px;
+    }
+
+    .field { margin-bottom: 12px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+    .input, .select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .input:focus, .select:focus { border-color: var(--ink); }
+
+    /* Список операций */
+    .tx-list { display: flex; flex-direction: column; gap: 8px; }
+    .tx-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .tx-title { font-size: 14px; font-weight: 600; }
+    .tx-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .tx-amt { font-size: 14px; font-weight: 700; }
+    .tx-pos { color: var(--green); }
+    .tx-neg { color: var(--ink); }
+
+    .badge-pending { color: #b45309; background: #fef3c7; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+    .badge-approved { color: #047857; background: #d1fae5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+    .badge-rejected { color: #b91c1c; background: #fee2e2; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+
+    /* QR контейнер */
+    .qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin: 12px 0;
+    }
+
+    /* Нижняя навигация */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+      z-index: 30;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--subtle);
+      cursor: pointer;
+      padding: 4px;
+    }
+    .nav-btn.active { color: var(--ink); }
+    .nav-btn svg { width: 22px; height: 22px; stroke-width: 1.9; }
+
+    /* Модальный лист (Bottom Sheet) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-sheet {
+      background: var(--bg);
+      width: 100%;
+      max-width: 440px;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+      box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.12);
+    }
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      margin: 0 auto 16px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
     }
   </style>
 </head>
 <body>
-  <div class="grid-bg"></div>
+  <!-- Шапка -->
+  <header class="topbar">
+    <div class="brand">
+      <svg width="26" height="20" viewBox="0 0 240 164" fill="none">
+        <path d="M168 32 H62 C36 32 22 46 22 72 V102 C22 128 36 142 62 142 H178 C204 142 218 128 218 102 V76" stroke="#00C4E0" stroke-width="18" stroke-linecap="round"/>
+        <rect x="66" y="75" width="38" height="20" rx="10" fill="#00C4E0"/>
+        <rect x="136" y="75" width="38" height="20" rx="10" fill="#00C4E0"/>
+        <path d="M204 4 L212 24 L232 32 L212 40 L204 60 L196 40 L176 32 L196 24 Z" fill="#F4B223"/>
+      </svg>
+      <span>RoboPay</span>
+    </div>
+    <button class="balance-chip tabular" id="topBalanceBtn">
+      <span class="balance-dot"></span>
+      <span id="topBalanceVal">0</span> RP
+    </button>
+  </header>
 
-  <div class="stage">
-    <!-- РОБОТ -->
-    <div class="robot-wrapper" id="robotWrapper">
-      <div class="robot-head" id="robotHead">
-        <div class="antenna"><div class="antenna-bulb" id="antennaBulb"></div></div>
-        <div class="visor" id="visor">
-          <div class="eyes-row">
-            <div class="eye-socket">
-              <div class="eyelid" id="lidLeft"></div>
-              <div class="pupil" id="pupilLeft"></div>
-            </div>
-            <div class="eye-socket">
-              <div class="eyelid" id="lidRight"></div>
-              <div class="pupil" id="pupilRight"></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- ЭКРАН 1: ТЕРМИНАЛ И ЧЕКАУТ -->
+  <main class="view active" id="viewTerminal">
+    <div class="terminal-stage">
+      <!-- Точный векторный робот по логотипу -->
+      <div class="robot-box" id="robotBox">
+        <svg class="robot-svg" id="robotSvg" viewBox="0 0 240 164" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g id="robotBody">
+            <!-- Скруглённый контур визора с вырезом под звезду -->
+            <path
+              id="visorFrame"
+              d="M166 34 H62 C37 34 24 47 24 72 V102 C24 127 37 140 62 140 H178 C203 140 216 127 216 102 V74"
+              stroke="#00C4E0"
+              stroke-width="11"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <!-- Левый горизонтальный глаз-капсула -->
+            <g id="eyeLeftGroup">
+              <rect id="eyeLeft" x="66" y="76" width="38" height="20" rx="10" fill="#00C4E0" />
+            </g>
+            <!-- Правый горизонтальный глаз-капсула -->
+            <g id="eyeRightGroup">
+              <rect id="eyeRight" x="136" y="76" width="38" height="20" rx="10" fill="#00C4E0" />
+            </g>
+            <!-- Золотая 4-лучевая звезда в правом верхнем углу -->
+            <g id="goldStar" style="transform-origin: 204px 34px;">
+              <path d="M204 6 L211.5 26.5 L232 34 L211.5 41.5 L204 62 L196.5 41.5 L176 34 L196.5 26.5 Z" fill="#F4B223" />
+            </g>
+          </g>
+        </svg>
+        <div class="robot-hint" id="robotHint">Готов к оплате • Нажмите на робота</div>
+      </div>
+
+      <!-- Быстрые кнопки под роботом (скрываются в режиме чекаута) -->
+      <div class="quick-actions" id="terminalActions">
+        <button class="btn btn-primary" id="btnScanQr">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+          Сканировать QR
+        </button>
+        <button class="btn btn-secondary" id="btnGoTransfer">
+          Перевести RP
+        </button>
+      </div>
+
+      <!-- Лист оплаты счёта (появляется после морфинга робота) -->
+      <div class="checkout-sheet" id="checkoutSheet">
+        <div id="checkoutFormState">
+          <div class="checkout-meta">
+            <span class="pill" id="coMerchant">MERCHANT</span>
+            <span class="mono" id="coOrderId">#ORD</span>
+          </div>
+          <div class="checkout-title" id="coTitle">Услуга</div>
+          <div class="checkout-desc" id="coDesc">Мгновенная оплата с баланса RoboPay</div>
+
+          <div class="price-panel">
+            <span class="price-label">К оплате</span>
+            <div class="tabular">
+              <span class="price-num" id="coAmount">0</span>
+              <span class="price-unit">RP</span>
             </div>
           </div>
-          <div class="mouth" id="mouth"></div>
+
+          <div class="wallet-inline tabular">
+            <span>Ваш баланс RoboPay</span>
+            <strong id="coUserBal">0 RP</strong>
+          </div>
+
+          <button class="btn btn-primary" id="coPayBtn">Оплатить</button>
+          <button class="btn btn-ghost" id="coCancelBtn" style="margin-top: 6px;">Отменить</button>
+        </div>
+
+        <!-- Анимация успешного платежа -->
+        <div class="success-overlay" id="checkoutSuccessState">
+          <svg class="success-circle" viewBox="0 0 72 72" fill="none">
+            <circle cx="36" cy="36" r="32" fill="#ECFDF5" stroke="#10B981" stroke-width="3"/>
+            <path id="successCheckPath" d="M23 37 L32 46 L50 27" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60" stroke-dashoffset="60"/>
+          </svg>
+          <div class="checkout-title" style="margin-bottom: 6px;">Оплачено</div>
+          <div class="checkout-desc" style="margin-bottom: 20px;" id="coSuccessSub">Сигнал моментально отправлен продавцу</div>
+          <button class="btn btn-secondary" id="coDoneBtn">Вернуться в терминал</button>
         </div>
       </div>
-      <div class="status-pill" id="statusPill">RoboPay активен • Коснись меня</div>
+    </div>
+  </main>
+
+  <!-- ЭКРАН 2: КОШЕЛЁК -->
+  <section class="view" id="viewWallet">
+    <div class="card">
+      <div class="hero-balance-label">Личный баланс RoboPay</div>
+      <div class="hero-balance tabular"><span id="walletBalBig">0</span> <span style="font-size: 20px; color: var(--cyan-dark);">RP</span></div>
+      <div class="row-2">
+        <button class="btn btn-primary" id="openTopupModal">Пополнить</button>
+        <button class="btn btn-secondary" id="openTransferModal">Перевести</button>
+      </div>
     </div>
 
-    <!-- КАРТОЧКА ОПЛАТЫ (появляется только при входе по платёжной ссылке) -->
-    <div class="receipt-card" id="receiptCard">
-      <div class="receipt-header">
-        <span class="merchant-badge" id="merchantName">PARTNER BOT</span>
-        <span class="order-id-tag" id="orderTag">#ORD</span>
+    <div class="section-title">Заявки на пополнение</div>
+    <div class="tx-list" id="topupsList">
+      <div class="card-soft" style="font-size: 13px; color: var(--muted); text-align: center;">Заявок пока нет</div>
+    </div>
+
+    <div class="section-title">История операций</div>
+    <div class="tx-list" id="historyList">
+      <div class="card-soft" style="font-size: 13px; color: var(--muted); text-align: center;">Операций пока нет</div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 3: QR И ВЫСТАВЛЕНИЕ СЧЁТА -->
+  <section class="view" id="viewQr">
+    <div class="card">
+      <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Мой QR для приёма RP</div>
+      <div style="font-size: 13px; color: var(--muted);">Покажите код другому пользователю — при сканировании откроется перевод на ваш ID.</div>
+      <div class="qr-wrap">
+        <div id="myQrContainer"></div>
+        <div class="mono" style="margin-top: 10px;" id="myTgIdLabel">ID: —</div>
       </div>
-      <div class="item-title" id="itemTitle">Услуга</div>
-      <div class="item-desc" id="itemDesc">Мгновенная оплата через Telegram Stars</div>
-      <div class="amount-box">
-        <span class="amount-label">К оплате</span>
-        <span class="amount-value"><span id="amountStars">0</span> ⭐</span>
+      <button class="btn btn-secondary" id="copyIdBtn">Скопировать мой ID</button>
+    </div>
+
+    <div class="card" id="merchantQrCard">
+      <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Создать QR-счёт проекта</div>
+      <div id="noProjectsNote" style="display:none; font-size: 13px; color: var(--muted);">
+        Создайте первый проект в меню бота («📦 Мои проекты»), чтобы выставлять счета клиентам.
       </div>
-      <button class="pay-btn" id="payBtn">Оплатить в Stars</button>
+      <div id="invoiceCreatorBox">
+        <div class="field">
+          <label>Проект</label>
+          <select class="select" id="invProjectSelect"></select>
+        </div>
+        <div class="field">
+          <label>Название услуги</label>
+          <input class="input" id="invTitleInput" placeholder="Например: Доступ в канал" maxlength="48" />
+        </div>
+        <div class="field">
+          <label>Сумма (RP)</label>
+          <input class="input tabular" id="invAmountInput" type="number" min="1" placeholder="50" />
+        </div>
+        <button class="btn btn-primary" id="createInvQrBtn">Сгенерировать QR и ссылку</button>
+
+        <div id="generatedInvResult" style="display:none; margin-top: 16px;">
+          <div class="qr-wrap">
+            <div id="invoiceQrContainer"></div>
+          </div>
+          <button class="btn btn-secondary" id="copyInvLinkBtn">Скопировать ссылку оплаты</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Нижняя навигация -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-btn active" data-tab="Terminal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="4"/><line x1="8" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="16" y2="12"/></svg>
+      Терминал
+    </button>
+    <button class="nav-btn" data-tab="Wallet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+      Кошелёк
+    </button>
+    <button class="nav-btn" data-tab="Qr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v7h-6"/></svg>
+      QR и Счета
+    </button>
+  </nav>
+
+  <!-- Модалка: Пополнение кошелька -->
+  <div class="modal-backdrop" id="topupModal">
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">Пополнение через Stars</div>
+      <div class="card-soft" style="font-size: 13px; line-height: 1.45; color: var(--muted);">
+        1. Отправьте звёзды аккаунту <strong style="color: var(--ink);" id="ownerUsernameTxt">@owner</strong>.<br/>
+        2. Укажите сумму ниже — владелец проверит поступление и зачислит <strong>RP (1:1)</strong>.
+      </div>
+      <div class="field">
+        <label>Сумма отправленных Stars</label>
+        <input class="input tabular" id="topupAmtInput" type="number" min="1" placeholder="100" />
+      </div>
+      <div class="field">
+        <label>Комментарий (необязательно)</label>
+        <input class="input" id="topupCommentInput" placeholder="Например: отправил подарком" maxlength="200" />
+      </div>
+      <button class="btn btn-primary" id="submitTopupBtn">Отправить заявку владельцу</button>
+      <button class="btn btn-ghost" data-close-modal="topupModal" style="margin-top: 6px;">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Модалка: Перевод RP -->
+  <div class="modal-backdrop" id="transferModal">
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">Перевод пользователю RoboPay</div>
+      <div class="field">
+        <label>Telegram ID получателя</label>
+        <input class="input tabular" id="trToInput" type="number" placeholder="123456789" />
+      </div>
+      <div class="field">
+        <label>Сумма (RP)</label>
+        <input class="input tabular" id="trAmtInput" type="number" min="1" placeholder="50" />
+      </div>
+      <div class="field">
+        <label>Комментарий</label>
+        <input class="input" id="trCommentInput" placeholder="За работу" maxlength="120" />
+      </div>
+      <button class="btn btn-primary" id="submitTransferBtn">Перевести</button>
+      <button class="btn btn-ghost" data-close-modal="transferModal" style="margin-top: 6px;">Закрыть</button>
     </div>
   </div>
 
@@ -346,283 +664,472 @@
     if (tg) {
       tg.ready();
       tg.expand();
-      tg.setHeaderColor("#07090e");
-      tg.setBackgroundColor("#07090e");
+      tg.setHeaderColor("#ffffff");
+      tg.setBackgroundColor("#ffffff");
     }
 
-    const robotWrapper = document.getElementById("robotWrapper");
-    const robotHead = document.getElementById("robotHead");
-    const antennaBulb = document.getElementById("antennaBulb");
-    const pupilLeft = document.getElementById("pupilLeft");
-    const pupilRight = document.getElementById("pupilRight");
-    const lidLeft = document.getElementById("lidLeft");
-    const lidRight = document.getElementById("lidRight");
-    const mouth = document.getElementById("mouth");
-    const statusPill = document.getElementById("statusPill");
-    const receiptCard = document.getElementById("receiptCard");
-    const payBtn = document.getElementById("payBtn");
+    const INIT_DATA = tg?.initData || "";
+    const state = {
+      user: null,
+      ownerUsername: "@owner",
+      projects: [],
+      topups: [],
+      history: [],
+      currentOrder: null,
+      isCheckoutMode: false,
+      isReacting: false,
+      lastReaction: -1,
+      lastCreatedLink: ""
+    };
 
-    let isCheckoutMode = false;
-    let isReacting = false;
-    let lastReactionIndex = -1;
-    let currentOrder = null;
+    // --- ХЕЛПЕРЫ API И UI ---
+    async function api(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Telegram-Init-Data": INIT_DATA,
+        ...(options.headers || {})
+      };
+      const res = await fetch(path, { ...options, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Ошибка запроса");
+      return data;
+    }
 
-    // 1. Плавное левитирование головы в покое
-    gsap.to(robotHead, {
-      y: -8,
-      duration: 2.2,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      gsap.killTweensOf(t);
+      gsap.fromTo(t, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.22 });
+      gsap.to(t, { opacity: 0, y: -10, duration: 0.25, delay: 2.2 });
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add("open"); }
+    function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+    document.querySelectorAll("[data-close-modal]").forEach(btn => {
+      btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
     });
 
-    // 2. Слежение глаз за пальцем / курсором
-    const moveLeftX = gsap.quickTo(pupilLeft, "x", { duration: 0.25, ease: "power3.out" });
-    const moveLeftY = gsap.quickTo(pupilLeft, "y", { duration: 0.25, ease: "power3.out" });
-    const moveRightX = gsap.quickTo(pupilRight, "x", { duration: 0.25, ease: "power3.out" });
-    const moveRightY = gsap.quickTo(pupilRight, "y", { duration: 0.25, ease: "power3.out" });
-
-    function trackPointer(clientX, clientY) {
-      if (isCheckoutMode || isReacting) return;
-      const rect = robotHead.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      const deltaX = Math.max(-1, Math.min(1, (clientX - centerX) / (window.innerWidth * 0.45)));
-      const deltaY = Math.max(-1, Math.min(1, (clientY - centerY) / (window.innerHeight * 0.45)));
-
-      const maxOffset = 9;
-      moveLeftX(deltaX * maxOffset);
-      moveLeftY(deltaY * maxOffset);
-      moveRightX(deltaX * maxOffset);
-      moveRightY(deltaY * maxOffset);
+    // --- НАВИГАЦИЯ ---
+    function switchTab(tabName) {
+      if (state.isCheckoutMode && tabName !== "Terminal") exitCheckout();
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById(`view${tabName}`).classList.add("active");
+      document.querySelector(`.nav-btn[data-tab="${tabName}"]`).classList.add("active");
     }
 
-    window.addEventListener("pointermove", (e) => trackPointer(e.clientX, e.clientY));
-    window.addEventListener("touchmove", (e) => {
-      if (e.touches[0]) trackPointer(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: true });
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+    document.getElementById("topBalanceBtn").addEventListener("click", () => switchTab("Wallet"));
 
-    // 3. Естественное моргание
+    // --- АНИМАЦИИ ВЕКТОРНОГО РОБОТА (ПО ТВОЕМУ ЛОГОТИПУ) ---
+    const robotBox = document.getElementById("robotBox");
+    const robotBody = document.getElementById("robotBody");
+    const eyeLeft = document.getElementById("eyeLeft");
+    const eyeRight = document.getElementById("eyeRight");
+    const eyeLeftGroup = document.getElementById("eyeLeftGroup");
+    const eyeRightGroup = document.getElementById("eyeRightGroup");
+    const goldStar = document.getElementById("goldStar");
+    const robotHint = document.getElementById("robotHint");
+
+    gsap.set([eyeLeft, eyeRight], { transformOrigin: "50% 50%" });
+    gsap.set(robotBody, { transformOrigin: "50% 50%" });
+
+    // Лёгкое дыхание
+    gsap.to(robotBody, { y: -5, duration: 2.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+    // Плавный трекинг глаз за пальцем / курсором
+    const lx = gsap.quickTo(eyeLeftGroup, "x", { duration: 0.25, ease: "power3.out" });
+    const ly = gsap.quickTo(eyeLeftGroup, "y", { duration: 0.25, ease: "power3.out" });
+    const rx = gsap.quickTo(eyeRightGroup, "x", { duration: 0.25, ease: "power3.out" });
+    const ry = gsap.quickTo(eyeRightGroup, "y", { duration: 0.25, ease: "power3.out" });
+
+    function trackPointer(cx, cy) {
+      if (state.isCheckoutMode || state.isReacting) return;
+      const rect = robotBox.getBoundingClientRect();
+      const dx = Math.max(-1, Math.min(1, (cx - (rect.left + rect.width / 2)) / (window.innerWidth * 0.45)));
+      const dy = Math.max(-1, Math.min(1, (cy - (rect.top + rect.height / 2)) / (window.innerHeight * 0.45)));
+      lx(dx * 12); ly(dy * 10);
+      rx(dx * 12); ry(dy * 10);
+    }
+    window.addEventListener("pointermove", e => trackPointer(e.clientX, e.clientY));
+    window.addEventListener("touchmove", e => { if (e.touches[0]) trackPointer(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+
+    // Естественное моргание
     function scheduleBlink() {
-      const delay = 2200 + Math.random() * 3000;
       setTimeout(() => {
-        if (!isCheckoutMode && !isReacting) {
+        if (!state.isCheckoutMode && !state.isReacting) {
           gsap.timeline()
-            .to([lidLeft, lidRight], { top: "0%", duration: 0.08, ease: "power2.in" })
-            .to([lidLeft, lidRight], { top: "-100%", duration: 0.12, ease: "power2.out" });
+            .to([eyeLeft, eyeRight], { scaleY: 0.12, duration: 0.08, ease: "power2.in" })
+            .to([eyeLeft, eyeRight], { scaleY: 1, duration: 0.12, ease: "power2.out" });
         }
         scheduleBlink();
-      }, delay);
+      }, 2400 + Math.random() * 2800);
     }
     scheduleBlink();
 
-    // 4. НАБОР РАЗНЫХ АНИМАЦИЙ ПРИ КЛИКЕ ПО РОБОТУ
-    const tapReactions = [
-      // Эмоция 1: Радостная улыбка и счастливый прищур
+    // 5 чистых сеньор-реакций по тапу
+    const reactions = [
       () => {
-        statusPill.textContent = "Привет! Готов принимать Stars ✨";
+        robotHint.textContent = "Готов к мгновенной оплате";
         return gsap.timeline()
-          .to(robotHead, { scale: 1.06, rotation: -3, duration: 0.18, ease: "back.out(2)" })
-          .to([pupilLeft, pupilRight], { scaleY: 0.4, scaleX: 1.15, borderRadius: "20px 20px 4px 4px", duration: 0.18 }, 0)
-          .to(mouth, { width: 46, height: 14, borderRadius: "4px 4px 20px 20px", duration: 0.18 }, 0)
-          .to(robotHead, { rotation: 3, duration: 0.18 })
-          .to(robotHead, { scale: 1, rotation: 0, duration: 0.35, ease: "elastic.out(1, 0.5)" }, "+=0.25")
-          .to([pupilLeft, pupilRight], { scaleY: 1, scaleX: 1, borderRadius: "12px", duration: 0.25 }, "<")
-          .to(mouth, { width: 34, height: 6, borderRadius: "6px", duration: 0.25 }, "<");
+          .to(goldStar, { rotation: "+=180", scale: 1.25, duration: 0.32, ease: "back.out(2)" })
+          .to([eyeLeft, eyeRight], { scaleY: 0.45, scaleX: 1.12, duration: 0.18 }, 0)
+          .to(goldStar, { scale: 1, duration: 0.25 })
+          .to([eyeLeft, eyeRight], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<");
       },
-      // Эмоция 2: Игривое подмигивание и наклон головы
       () => {
-        statusPill.textContent = "Быстрая оплата в один клик 😉";
+        robotHint.textContent = "Подмигнул • Отсканируй QR";
         return gsap.timeline()
-          .to(robotHead, { rotation: 7, scale: 0.97, duration: 0.2, ease: "power2.out" })
-          .to(lidRight, { top: "0%", duration: 0.1 }, 0)
-          .to(pupilLeft, { scale: 1.2, duration: 0.15 }, 0)
-          .to(mouth, { width: 24, x: -4, duration: 0.15 }, 0)
-          .to(lidRight, { top: "-100%", duration: 0.15 }, "+=0.35")
-          .to(robotHead, { rotation: 0, scale: 1, duration: 0.4, ease: "elastic.out(1, 0.5)" }, "<")
-          .to(pupilLeft, { scale: 1, duration: 0.2 }, "<")
-          .to(mouth, { width: 34, x: 0, duration: 0.2 }, "<");
+          .to(robotBody, { rotation: 5, duration: 0.18, ease: "power2.out" })
+          .to(eyeRight, { scaleY: 0.1, duration: 0.1 }, 0)
+          .to(eyeLeft, { scale: 1.15, duration: 0.15 }, 0)
+          .to(eyeRight, { scaleY: 1, duration: 0.14 }, "+=0.3")
+          .to(robotBody, { rotation: 0, duration: 0.35, ease: "elastic.out(1, 0.5)" }, "<")
+          .to(eyeLeft, { scale: 1, duration: 0.2 }, "<");
       },
-      // Эмоция 3: Удивление (широкие глаза + рот «О»)
       () => {
-        statusPill.textContent = "Ого! Щекотно же ⚡";
+        robotHint.textContent = "Проверяю входящие сигналы...";
         return gsap.timeline()
-          .to(robotHead, { scale: 1.08, y: -16, duration: 0.16, ease: "power2.out" })
-          .to([pupilLeft, pupilRight], { x: 0, y: 0, scale: 1.35, duration: 0.16 }, 0)
-          .to(mouth, { width: 16, height: 16, borderRadius: "50%", duration: 0.16 }, 0)
-          .to(robotHead, { scale: 1, y: -8, duration: 0.45, ease: "bounce.out" }, "+=0.3")
-          .to([pupilLeft, pupilRight], { scale: 1, duration: 0.25 }, "<")
-          .to(mouth, { width: 34, height: 6, borderRadius: "6px", duration: 0.25 }, "<");
+          .to([eyeLeftGroup, eyeRightGroup], { x: -14, y: -4, duration: 0.15 })
+          .to([eyeLeftGroup, eyeRightGroup], { x: 14, y: -4, duration: 0.22 }, "+=0.08")
+          .to([eyeLeftGroup, eyeRightGroup], { x: 0, y: 0, duration: 0.18 }, "+=0.08");
       },
-      // Эмоция 4: Режим «Золотая звезда» (вспышка антенны и глаз)
       () => {
-        statusPill.textContent = "Режим Telegram Stars активирован ⭐";
+        robotHint.textContent = "Ого! Баланс под защитой";
         return gsap.timeline()
-          .to(robotHead, { scale: 0.95, duration: 0.1 })
-          .to([pupilLeft, pupilRight, mouth, antennaBulb], {
-            backgroundColor: "#fbbf24",
-            boxShadow: "0 0 24px #fbbf24",
-            scale: 1.15,
-            duration: 0.2
-          })
-          .to(robotHead, { scale: 1.04, duration: 0.25, ease: "back.out(2)" }, "<")
-          .to([pupilLeft, pupilRight, mouth, antennaBulb], {
-            backgroundColor: "#38bdf8",
-            boxShadow: "0 0 18px #38bdf8",
-            scale: 1,
-            duration: 0.35
-          }, "+=0.45")
-          .to(robotHead, { scale: 1, duration: 0.3 }, "<");
+          .to(robotBody, { scale: 1.07, duration: 0.15, ease: "power2.out" })
+          .to([eyeLeft, eyeRight], { scaleY: 1.45, scaleX: 0.85, duration: 0.15 }, 0)
+          .to(robotBody, { scale: 1, duration: 0.4, ease: "elastic.out(1, 0.45)" }, "+=0.22")
+          .to([eyeLeft, eyeRight], { scaleY: 1, scaleX: 1, duration: 0.22 }, "<");
       },
-      // Эмоция 5: Любопытное сканирование по сторонам
       () => {
-        statusPill.textContent = "Сканирую входящие сигналы... 📡";
+        robotHint.textContent = "Звезда активирована";
         return gsap.timeline()
-          .to([pupilLeft, pupilRight], { x: -11, y: -2, duration: 0.15 })
-          .to(robotHead, { rotation: -4, duration: 0.15 }, "<")
-          .to([pupilLeft, pupilRight], { x: 11, y: -2, duration: 0.22 }, "+=0.1")
-          .to(robotHead, { rotation: 4, duration: 0.22 }, "<")
-          .to([pupilLeft, pupilRight], { x: 0, y: 0, duration: 0.18 }, "+=0.1")
-          .to(robotHead, { rotation: 0, duration: 0.25 }, "<");
+          .to([eyeLeft, eyeRight], { fill: "#F4B223", scale: 1.12, duration: 0.2 })
+          .to(goldStar, { rotation: "+=360", scale: 1.3, duration: 0.5, ease: "power2.inOut" }, 0)
+          .to([eyeLeft, eyeRight], { fill: "#00C4E0", scale: 1, duration: 0.3 }, "+=0.1")
+          .to(goldStar, { scale: 1, duration: 0.25 }, "<");
       }
     ];
 
-    robotHead.addEventListener("click", () => {
-      if (isCheckoutMode || isReacting) return;
-      isReacting = true;
-      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
-
-      // Выбираем случайную реакцию, отличную от предыдущей
-      let nextIndex;
-      do {
-        nextIndex = Math.floor(Math.random() * tapReactions.length);
-      } while (nextIndex === lastReactionIndex && tapReactions.length > 1);
-      lastReactionIndex = nextIndex;
-
-      const tl = tapReactions[nextIndex]();
-      tl.eventCallback("onComplete", () => {
-        isReacting = false;
-      });
+    robotBox.addEventListener("click", () => {
+      if (state.isCheckoutMode || state.isReacting) return;
+      state.isReacting = true;
+      tg?.HapticFeedback?.impactOccurred("light");
+      let idx;
+      do { idx = Math.floor(Math.random() * reactions.length); } while (idx === state.lastReaction);
+      state.lastReaction = idx;
+      reactions[idx]().eventCallback("onComplete", () => { state.isReacting = false; });
     });
 
-    // 5. МОРФИНГ ЛИЦА В ЧЕК (только при входе по ссылке с order_id)
-    function morphToReceipt(orderData) {
-      isCheckoutMode = true;
-      currentOrder = orderData;
+    // --- МОРФИНГ РОБОТА В ЧЕКАУТ ---
+    function enterCheckout(order) {
+      state.isCheckoutMode = true;
+      state.currentOrder = order;
+      switchTab("Terminal");
 
-      document.getElementById("merchantName").textContent = orderData.merchant_title;
-      document.getElementById("orderTag").textContent = `#${orderData.order_id.toUpperCase()}`;
-      document.getElementById("itemTitle").textContent = orderData.title;
-      document.getElementById("itemDesc").textContent = orderData.description;
-      document.getElementById("amountStars").textContent = orderData.amount_stars;
+      document.getElementById("coMerchant").textContent = order.merchant_title;
+      document.getElementById("coOrderId").textContent = `#${order.order_id.toUpperCase()}`;
+      document.getElementById("coTitle").textContent = order.title;
+      document.getElementById("coDesc").textContent = order.description;
+      document.getElementById("coAmount").textContent = order.amount_rp;
 
-      const tl = gsap.timeline();
-      tl.to([pupilLeft, pupilRight], {
-        x: 0,
-        y: 0,
-        scale: 1.25,
-        duration: 0.25,
-        ease: "back.out(2)"
-      })
-      .to(robotWrapper, {
-        scale: 0.65,
-        y: -70,
-        opacity: 0,
-        filter: "blur(10px)",
-        duration: 0.38,
-        ease: "power3.in",
-        onComplete: () => {
-          robotWrapper.style.pointerEvents = "none";
-          receiptCard.style.pointerEvents = "auto";
-        }
-      }, "+=0.12")
-      .to(receiptCard, {
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        duration: 0.5,
-        ease: "back.out(1.4)"
-      }, "-=0.15");
-    }
+      const userBal = state.user?.wallet_balance ?? 0;
+      document.getElementById("coUserBal").textContent = `${userBal} RP`;
 
-    // 6. АНИМАЦИЯ УСПЕШНОЙ ОПЛАТЫ
-    function morphToSuccess() {
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-
-      const tl = gsap.timeline();
-      tl.to(receiptCard, {
-        opacity: 0,
-        scale: 0.8,
-        y: 30,
-        duration: 0.3,
-        ease: "power2.in",
-        onComplete: () => {
-          receiptCard.style.pointerEvents = "none";
-          robotWrapper.style.pointerEvents = "auto";
-          robotHead.classList.add("success-state");
-          pupilLeft.style.background = "#10b981";
-          pupilLeft.style.boxShadow = "0 0 20px #10b981";
-          pupilRight.style.background = "#10b981";
-          pupilRight.style.boxShadow = "0 0 20px #10b981";
-          mouth.style.background = "#10b981";
-          mouth.style.width = "48px";
-          statusPill.textContent = "✅ Оплата подтверждена! Сигнал отправлен.";
-          statusPill.style.color = "#6ee7b7";
-        }
-      })
-      .to(robotWrapper, {
-        opacity: 1,
-        scale: 1.05,
-        y: 0,
-        filter: "blur(0px)",
-        duration: 0.45,
-        ease: "elastic.out(1, 0.5)"
-      })
-      .to(lidRight, { top: "0%", duration: 0.1 })
-      .to(lidRight, { top: "-100%", duration: 0.15 }, "+=0.25")
-      .to(robotWrapper, { scale: 1, duration: 0.2 });
-
-      if (tg && currentOrder?.invoice_link) {
-        setTimeout(() => tg.close(), 2200);
+      const payBtn = document.getElementById("coPayBtn");
+      if (userBal < order.amount_rp) {
+        payBtn.textContent = `Пополнить кошелёк (не хватает ${order.amount_rp - userBal} RP)`;
+        payBtn.dataset.mode = "topup";
+      } else {
+        payBtn.textContent = `Оплатить ${order.amount_rp} RP`;
+        payBtn.dataset.mode = "pay";
       }
+
+      document.getElementById("checkoutFormState").style.display = "block";
+      document.getElementById("checkoutSuccessState").style.display = "none";
+      document.getElementById("terminalActions").style.display = "none";
+
+      const sheet = document.getElementById("checkoutSheet");
+      sheet.style.display = "block";
+
+      const tl = gsap.timeline();
+      // 1. Взгляд ровно по центру, вспышка звезды
+      tl.to([eyeLeftGroup, eyeRightGroup], { x: 0, y: 0, duration: 0.2 })
+        .to(goldStar, { rotation: "+=90", scale: 1.25, duration: 0.25, ease: "back.out(2)" }, "<")
+        // 2. Робот аккуратно сжимается вверх и исчезает
+        .to(robotBox, { scale: 0.72, y: -30, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => { robotBox.style.display = "none"; } }, "+=0.05")
+        // 3. Выезжает чистая белая карточка оплаты
+        .to(sheet, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "power3.out" }, "-=0.05");
     }
 
-    payBtn.addEventListener("click", () => {
-      if (currentOrder?.invoice_link && tg?.openInvoice) {
-        tg.openInvoice(currentOrder.invoice_link, (status) => {
-          if (status === "paid") {
-            morphToSuccess();
-          } else if (status === "failed") {
-            statusPill.textContent = "❌ Ошибка платежа";
+    function exitCheckout() {
+      state.isCheckoutMode = false;
+      state.currentOrder = null;
+      const sheet = document.getElementById("checkoutSheet");
+      gsap.to(sheet, {
+        opacity: 0, y: 18, scale: 0.96, duration: 0.22,
+        onComplete: () => {
+          sheet.style.display = "none";
+          robotBox.style.display = "flex";
+          document.getElementById("terminalActions").style.display = "flex";
+          gsap.fromTo(robotBox, { opacity: 0, scale: 0.85, y: -12 }, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: "power2.out" });
+          gsap.set(goldStar, { scale: 1 });
+        }
+      });
+    }
+
+    document.getElementById("coCancelBtn").addEventListener("click", exitCheckout);
+    document.getElementById("coDoneBtn").addEventListener("click", exitCheckout);
+
+    // Оплата счёта с анимацией галочки
+    document.getElementById("coPayBtn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      if (btn.dataset.mode === "topup") {
+        document.getElementById("topupAmtInput").value = Math.max(1, state.currentOrder.amount_rp - (state.user?.wallet_balance ?? 0));
+        openModal("topupModal");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Проводим платёж...";
+      try {
+        const res = await api(`/api/v1/orders/${encodeURIComponent(state.currentOrder.order_id)}/pay`, { method: "POST" });
+        tg?.HapticFeedback?.notificationOccurred("success");
+
+        document.getElementById("checkoutFormState").style.display = "none";
+        const succ = document.getElementById("checkoutSuccessState");
+        succ.style.display = "flex";
+        document.getElementById("coSuccessSub").textContent = `Списано ${state.currentOrder.amount_rp} RP • Остаток: ${res.wallet_balance} RP`;
+
+        gsap.fromTo("#successCheckPath", { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.55, ease: "power2.out" });
+        gsap.fromTo(".success-circle", { scale: 0.75 }, { scale: 1, duration: 0.45, ease: "back.out(2)" });
+
+        await loadProfile();
+      } catch (err) {
+        showToast(err.message);
+        tg?.HapticFeedback?.notificationOccurred("error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // --- QR-СКАНЕР И ГЕНЕРАЦИЯ QR ---
+    function renderBrandedQr(containerId, text) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = "";
+      const qr = new QRCodeStyling({
+        width: 196,
+        height: 196,
+        data: text,
+        margin: 4,
+        dotsOptions: { color: "#0f172a", type: "rounded" },
+        cornersSquareOptions: { color: "#00c4e0", type: "extra-rounded" },
+        cornersDotOptions: { color: "#f4b223", type: "dot" },
+        backgroundOptions: { color: "#ffffff" }
+      });
+      qr.append(el);
+    }
+
+    function handleScannedPayload(raw) {
+      const str = (raw || "").trim();
+      // 1. Перевод по личному QR (rp_uid:123456)
+      if (str.startsWith("rp_uid:")) {
+        const uid = str.replace("rp_uid:", "").trim();
+        document.getElementById("trToInput").value = uid;
+        openModal("transferModal");
+        return true;
+      }
+      // 2. Счёт оплаты (https://t.me/...start=pay_ord_... или ord_...)
+      const match = str.match(/ord_[a-f0-9]+/i);
+      if (match) {
+        loadOrderAndCheckout(match[0]);
+        return true;
+      }
+      showToast("Неизвестный QR-код");
+      return false;
+    }
+
+    document.getElementById("btnScanQr").addEventListener("click", () => {
+      if (tg?.showScanQrPopup) {
+        tg.showScanQrPopup({ text: "Наведите камеру на QR-код RoboPay" }, (text) => {
+          if (handleScannedPayload(text)) {
+            tg.closeScanQrPopup();
+            return true;
           }
         });
+      } else {
+        showToast("Сканер доступен внутри мобильного Telegram");
       }
     });
 
-    // Проверка наличия заказа в URL (?startapp=ord_... или ?order_id=ord_...)
-    async function initCheckoutFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      const orderId = tg?.initDataUnsafe?.start_param || params.get("order_id");
-      if (!orderId) return; // Если ссылки нет — оставляем интерактивного робота
+    document.getElementById("btnGoTransfer").addEventListener("click", () => openModal("transferModal"));
+    document.getElementById("openTopupModal").addEventListener("click", () => openModal("topupModal"));
+    document.getElementById("openTransferModal").addEventListener("click", () => openModal("transferModal"));
 
-      statusPill.textContent = "Загрузка счёта...";
+    // Отправка заявки на пополнение
+    document.getElementById("submitTopupBtn").addEventListener("click", async () => {
+      const amount = parseInt(document.getElementById("topupAmtInput").value, 10);
+      const comment = document.getElementById("topupCommentInput").value.trim();
+      if (!amount || amount < 1) { showToast("Укажите корректную сумму"); return; }
+
+      const btn = document.getElementById("submitTopupBtn");
+      btn.disabled = true;
       try {
-        const res = await fetch(`/api/v1/orders/${encodeURIComponent(orderId)}`);
-        if (!res.ok) throw new Error("Order not found");
-        const order = await res.json();
-
-        if (order.status === "paid") {
-          statusPill.textContent = "Этот счёт уже оплачен ✅";
-          return;
-        }
-        setTimeout(() => morphToReceipt(order), 400);
+        await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment }) });
+        closeModal("topupModal");
+        document.getElementById("topupAmtInput").value = "";
+        document.getElementById("topupCommentInput").value = "";
+        showToast("Заявка отправлена владельцу");
+        await loadProfile();
       } catch (err) {
-        statusPill.textContent = "⚠️ Счёт не найден или устарел";
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Перевод RP другому пользователю
+    document.getElementById("submitTransferBtn").addEventListener("click", async () => {
+      const to_tg_id = parseInt(document.getElementById("trToInput").value, 10);
+      const amount = parseInt(document.getElementById("trAmtInput").value, 10);
+      const comment = document.getElementById("trCommentInput").value.trim();
+      if (!to_tg_id || !amount || amount < 1) { showToast("Заполните ID и сумму"); return; }
+
+      const btn = document.getElementById("submitTransferBtn");
+      btn.disabled = true;
+      try {
+        await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment }) });
+        closeModal("transferModal");
+        document.getElementById("trAmtInput").value = "";
+        document.getElementById("trCommentInput").value = "";
+        tg?.HapticFeedback?.notificationOccurred("success");
+        showToast(`Переведено ${amount} RP`);
+        await loadProfile();
+      } catch (err) {
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Создание QR-счёта прямо в Mini App
+    document.getElementById("createInvQrBtn").addEventListener("click", async () => {
+      const merchant_id = document.getElementById("invProjectSelect").value;
+      const title = document.getElementById("invTitleInput").value.trim();
+      const amount = parseInt(document.getElementById("invAmountInput").value, 10);
+      if (!merchant_id || !title || !amount) { showToast("Заполните все поля"); return; }
+
+      const btn = document.getElementById("createInvQrBtn");
+      btn.disabled = true;
+      try {
+        const order = await api("/api/v1/webapp/invoices", {
+          method: "POST",
+          body: JSON.stringify({ merchant_id, title, amount })
+        });
+        state.lastCreatedLink = order.checkout_deeplink;
+        document.getElementById("generatedInvResult").style.display = "block";
+        renderBrandedQr("invoiceQrContainer", order.qr_payload);
+        showToast("QR-счёт создан");
+      } catch (err) {
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("copyInvLinkBtn").addEventListener("click", () => {
+      if (!state.lastCreatedLink) return;
+      navigator.clipboard?.writeText(state.lastCreatedLink);
+      showToast("Ссылка скопирована");
+    });
+
+    document.getElementById("copyIdBtn").addEventListener("click", () => {
+      if (!state.user) return;
+      navigator.clipboard?.writeText(String(state.user.tg_id));
+      showToast("Ваш ID скопирован");
+    });
+
+    // --- ЗАГРУЗКА ДАННЫХ И ЗАКАЗА ---
+    async function loadProfile() {
+      if (!INIT_DATA) return;
+      try {
+        const data = await api("/api/v1/me");
+        state.user = data.user;
+        state.ownerUsername = data.owner_username;
+        state.projects = data.projects;
+        state.topups = data.topups;
+        state.history = data.history;
+
+        document.getElementById("topBalanceVal").textContent = data.user.wallet_balance;
+        document.getElementById("walletBalBig").textContent = data.user.wallet_balance;
+        document.getElementById("ownerUsernameTxt").textContent = data.owner_username;
+        document.getElementById("myTgIdLabel").textContent = `ID: ${data.user.tg_id}`;
+        renderBrandedQr("myQrContainer", `rp_uid:${data.user.tg_id}`);
+
+        // Проекты для QR-счёта
+        const sel = document.getElementById("invProjectSelect");
+        if (data.projects.length === 0) {
+          document.getElementById("noProjectsNote").style.display = "block";
+          document.getElementById("invoiceCreatorBox").style.display = "none";
+        } else {
+          document.getElementById("noProjectsNote").style.display = "none";
+          document.getElementById("invoiceCreatorBox").style.display = "block";
+          sel.innerHTML = data.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
+        }
+
+        // Заявки на пополнение
+        const tList = document.getElementById("topupsList");
+        if (data.topups.length) {
+          const labels = { pending: ["Ожидает", "badge-pending"], approved: ["Одобрено", "badge-approved"], rejected: ["Отклонено", "badge-rejected"] };
+          tList.innerHTML = data.topups.map(r => {
+            const [lbl, cls] = labels[r.status] || [r.status, "badge-pending"];
+            return `<div class="tx-item">
+              <div><div class="tx-title">+${r.amount_rp} RP</div><div class="tx-sub">${r.request_id}</div></div>
+              <span class="${cls}">${lbl}</span>
+            </div>`;
+          }).join("");
+        }
+
+        // История операций
+        const hList = document.getElementById("historyList");
+        if (data.history.length) {
+          hList.innerHTML = data.history.map(h => `
+            <div class="tx-item">
+              <div><div class="tx-title">${h.title}</div><div class="tx-sub">${h.id}</div></div>
+              <div class="tx-amt tabular ${h.delta > 0 ? "tx-pos" : "tx-neg"}">${h.delta > 0 ? "+" : ""}${h.delta} RP</div>
+            </div>
+          `).join("");
+        }
+      } catch (err) {
+        console.error(err);
       }
     }
 
-    initCheckoutFromUrl();
+    async function loadOrderAndCheckout(orderId) {
+      robotHint.textContent = "Загружаем счёт...";
+      try {
+        const order = await api(`/api/v1/orders/${encodeURIComponent(orderId)}`);
+        if (order.status === "paid") {
+          robotHint.textContent = "Этот счёт уже оплачен";
+          return;
+        }
+        setTimeout(() => enterCheckout(order), 320);
+      } catch (err) {
+        robotHint.textContent = "Счёт не найден";
+        showToast(err.message);
+      }
+    }
+
+    (async () => {
+      await loadProfile();
+      if (window.location.hash === "#wallet") switchTab("Wallet");
+      const params = new URLSearchParams(window.location.search);
+      const orderId = tg?.initDataUnsafe?.start_param || params.get("order_id");
+      if (orderId) loadOrderAndCheckout(orderId);
+    })();
   </script>
 </body>
 </html>
