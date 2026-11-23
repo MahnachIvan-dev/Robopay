@@ -4,6 +4,7 @@ import hmac
 import html
 import json
 import os
+import re
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager
@@ -32,14 +33,45 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-# --- КОНФИГУРАЦИЯ (из Variables в Railway) ---
-BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-PUBLIC_URL = os.getenv("PUBLIC_URL", "https://your-domain.up.railway.app").rstrip("/")
-OWNER_USERNAME = os.getenv("OWNER_USERNAME", "@owner").strip()  # Аккаунт, куда кидают Stars
-COMMISSION_RATE = float(os.getenv("COMMISSION_RATE", "0.05"))   # 5% комиссия шлюза
-DB_PATH = os.getenv("DB_PATH", "gateway.db")
-DB_CHANNEL_ID = int(os.getenv("DB_CHANNEL_ID", "0"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+
+# --- БЕЗОПАСНОЕ ЧТЕНИЕ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ ---
+def env_int(name: str, default: int = 0) -> int:
+    raw = os.getenv(name, "").strip()
+    try:
+        return int(raw) if raw else default
+    except ValueError:
+        return default
+
+
+def env_float(name: str, default: float = 0.05) -> float:
+    raw = os.getenv(name, "").strip().replace(",", ".")
+    try:
+        return float(raw) if raw else default
+    except ValueError:
+        return default
+
+
+def normalize_owner(raw: str) -> tuple[str, str]:
+    """Из @nick, nick или https://t.me/nick возвращает ('@nick', 'https://t.me/nick')."""
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^https?://t\.me/", "", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.lstrip("@").split("/")[0].split("?")[0].strip()
+    if not cleaned:
+        cleaned = "owner"
+    return f"@{cleaned}", f"https://t.me/{cleaned}"
+
+
+# --- КОНФИГУРАЦИЯ ---
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+OWNER_DISPLAY, OWNER_URL = normalize_owner(os.getenv("OWNER_USERNAME", "@owner"))
+COMMISSION_RATE = env_float("COMMISSION_RATE", 0.05)
+DB_PATH = os.getenv("DB_PATH", "gateway.db").strip() or "gateway.db"
+DB_CHANNEL_ID = env_int("DB_CHANNEL_ID", 0)
+ADMIN_ID = env_int("ADMIN_ID", 0)
+
+if not BOT_TOKEN:
+    raise RuntimeError("Не задана переменная окружения BOT_TOKEN!")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -88,7 +120,6 @@ async def safe_edit(message: types.Message, text: str, reply_markup: InlineKeybo
 
 
 def verify_telegram_init_data(init_data: str) -> dict:
-    """Криптографическая проверка подписи Telegram WebApp initData (HMAC-SHA256)."""
     if not init_data:
         raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
     try:
@@ -111,16 +142,20 @@ def verify_telegram_init_data(init_data: str) -> dict:
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=401, detail="Ошибка проверки авторизации Telegram")
+        raise HTTPException(status_code=401, detail="Ошибка авторизации Telegram")
 
 
-# --- БАЗА ДАННЫХ И СИНХРОНИЗАЦИЯ С ТГ-КАНАЛОМ ---
+# --- БАЗА ДАННЫХ С АВТОМИГРАЦИЕЙ СТАРЫХ СНИМКОВ ---
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA busy_timeout=5000;")
     return conn
+
+
+def get_table_cols(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
 
 
 def init_db() -> None:
@@ -157,8 +192,7 @@ def init_db() -> None:
                 status TEXT DEFAULT 'pending',
                 payer_tg_id INTEGER,
                 created_at TEXT NOT NULL,
-                paid_at TEXT,
-                FOREIGN KEY (merchant_id) REFERENCES merchants(merchant_id)
+                paid_at TEXT
             );
 
             CREATE TABLE IF NOT EXISTS topup_requests (
@@ -183,10 +217,53 @@ def init_db() -> None:
             );
             """
         )
-        # Безопасная миграция, если подгрузилась старая БД из канала
-        cols_users = {r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
-        if "wallet_balance" not in cols_users:
+
+        # --- АВТОМАТИЧЕСКАЯ МИГРАЦИЯ СТАРЫХ БД (из ТГ-канала прошлых версий) ---
+        u_cols = get_table_cols(conn, "users")
+        if "wallet_balance" not in u_cols:
             conn.execute("ALTER TABLE users ADD COLUMN wallet_balance INTEGER DEFAULT 0")
+
+        m_cols = get_table_cols(conn, "merchants")
+        if "balance_rp" not in m_cols:
+            conn.execute("ALTER TABLE merchants ADD COLUMN balance_rp INTEGER DEFAULT 0")
+            if "balance_stars" in m_cols:
+                conn.execute("UPDATE merchants SET balance_rp = COALESCE(balance_stars, 0)")
+
+        o_cols = get_table_cols(conn, "orders")
+        if "amount_rp" not in o_cols or "invoice_link" in o_cols:
+            # Пересобираем старую таблицу orders без устаревшего NOT NULL у invoice_link
+            amt_src = "amount_rp" if "amount_rp" in o_cols else "COALESCE(amount_stars, 0)"
+            fee_src = "fee_rp" if "fee_rp" in o_cols else "COALESCE(fee_stars, 0)"
+            net_src = "net_rp" if "net_rp" in o_cols else "COALESCE(net_stars, 0)"
+            conn.executescript(
+                f"""
+                CREATE TABLE orders_migrated (
+                    order_id TEXT PRIMARY KEY,
+                    merchant_id TEXT NOT NULL,
+                    external_order_id TEXT,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    amount_rp INTEGER NOT NULL,
+                    fee_rp INTEGER NOT NULL,
+                    net_rp INTEGER NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    payer_tg_id INTEGER,
+                    created_at TEXT NOT NULL,
+                    paid_at TEXT
+                );
+                INSERT INTO orders_migrated (
+                    order_id, merchant_id, external_order_id, title, description,
+                    amount_rp, fee_rp, net_rp, status, payer_tg_id, created_at, paid_at
+                )
+                SELECT
+                    order_id, merchant_id, external_order_id, title, description,
+                    {amt_src}, {fee_src}, {net_src}, status, payer_tg_id, created_at, paid_at
+                FROM orders;
+                DROP TABLE orders;
+                ALTER TABLE orders_migrated RENAME TO orders;
+                """
+            )
+            print("[DB Migration] Старая таблица orders успешно мигрирована на RP.")
 
 
 def ensure_user(tg_id: int, username: Optional[str], first_name: Optional[str]) -> None:
@@ -252,7 +329,7 @@ async def sync_db_to_telegram(reason: str = "Авто-синхронизация
                 os.remove(snapshot_path)
 
 
-# --- БИЗНЕС-ЛОГИКА: ЗАЯВКИ, СЧЕТА, СИГНАЛЫ ---
+# --- БИЗНЕС-ЛОГИКА ---
 def create_order_record(
     merchant_id: str,
     title: str,
@@ -308,13 +385,13 @@ async def create_topup_request_and_notify(user_tg_id: int, amount_rp: int, comme
         uname = f"@{user_row['username']}" if user_row and user_row["username"] else "без username"
         fname = esc(user_row["first_name"] if user_row else "Пользователь")
         admin_text = (
-            f"📥 <b>Новая заявка на пополнение</b>\n\n"
+            f"🎁 <b>Новая заявка на пополнение</b>\n\n"
             f"• Заявка: <code>{req_id}</code>\n"
             f"• Клиент: <b>{fname}</b> ({uname})\n"
             f"• ID: <code>{user_tg_id}</code>\n"
             f"• Сумма: <b>{amount_rp} ⭐ → {amount_rp} RP</b>\n"
             f"• Комментарий: <i>{esc(comment or '—')}</i>\n\n"
-            f"Проверьте поступление звёзд на <b>{esc(OWNER_USERNAME)}</b> и подтвердите зачисление:"
+            f"Проверьте подарок/Stars на <b>{esc(OWNER_DISPLAY)}</b>:"
         )
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -390,24 +467,29 @@ def build_main_menu(user: types.User) -> tuple[str, InlineKeyboardMarkup]:
     m_cnt = m_stats["cnt"] if m_stats else 0
 
     text = (
-        f"<b>RoboPay</b> — платёжная система и терминал\n\n"
+        f"<b>RoboPay</b> — платёжный терминал\n\n"
         f"Аккаунт <b>{esc(user.first_name)}</b> привязан (ID: <code>{user.id}</code>).\n"
-        f"Оплачивайте услуги и переводите средства во внутренней валюте <b>RP</b> по ссылкам и QR-кодам.\n\n"
+        f"Оплачивайте услуги, принимайте переводы по QR и подключайте шлюз к своим проектам.\n\n"
         f"• Кошелёк: <b>{w_bal} RP</b>\n"
         f"• Проекты ({m_cnt}): <b>{m_bal} RP</b>"
     )
 
-    buttons = [
-        [InlineKeyboardButton(text="Открыть RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))],
+    buttons = []
+    if PUBLIC_URL.startswith("https://"):
+        buttons.append([InlineKeyboardButton(text="Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
+
+    buttons.extend(
         [
-            InlineKeyboardButton(text="💳 Кошелёк / Пополнить", callback_data="wallet"),
-            InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
-        ],
-        [
-            InlineKeyboardButton(text="📦 Мои проекты", callback_data="projects"),
-            InlineKeyboardButton(text="📖 API", callback_data="api_docs"),
-        ],
-    ]
+            [
+                InlineKeyboardButton(text="💳 Пополнить / Кошелёк", callback_data="wallet"),
+                InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
+            ],
+            [
+                InlineKeyboardButton(text="📦 Мои проекты", callback_data="projects"),
+                InlineKeyboardButton(text="📖 API", callback_data="api_docs"),
+            ],
+        ]
+    )
     if is_admin(user.id):
         buttons.append([InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")])
 
@@ -507,7 +589,7 @@ async def cb_main_menu(callback: types.CallbackQuery, state: FSMContext) -> None
     await callback.answer()
 
 
-# --- КОШЕЛЁК И ПОПОЛНЕНИЕ В БОТЕ ---
+# --- КОШЕЛЁК И ПОПОЛНЕНИЕ ПОДАРКОМ ---
 @dp.callback_query(F.data == "wallet")
 async def cb_wallet(callback: types.CallbackQuery, state: FSMContext) -> None:
     await state.clear()
@@ -523,8 +605,11 @@ async def cb_wallet(callback: types.CallbackQuery, state: FSMContext) -> None:
     lines = [
         f"💳 <b>Личный кошелёк RoboPay</b>\n",
         f"• Баланс: <b>{bal} RP</b>",
-        f"• Курс пополнения: <b>1 ⭐ = 1 RP</b>\n",
-        f"Чтобы пополнить кошелёк, отправьте звёзды владельцу <b>{esc(OWNER_USERNAME)}</b> и подайте заявку — средства поступят сразу после проверки.",
+        f"• Курс: <b>1 ⭐ = 1 RP</b>\n",
+        f"<b>Как пополнить баланс:</b>",
+        f"1. Перейдите в профиль владельца по ссылке: <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a> ({OWNER_URL})",
+        f"2. Отправьте Telegram-подарок на нужную сумму звёзд.",
+        f"3. Нажмите <b>«✅ Я отправил подарок»</b> — владелец проверит и зачислит RP.",
     ]
     if reqs:
         status_map = {"pending": "⏳ На проверке", "approved": "✅ Одобрено", "rejected": "❌ Отклонено"}
@@ -532,38 +617,45 @@ async def cb_wallet(callback: types.CallbackQuery, state: FSMContext) -> None:
         for r in reqs:
             lines.append(f"• <code>{r['request_id']}</code>: {r['amount_rp']} RP — {status_map.get(r['status'], r['status'])}")
 
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Пополнить (отправил ⭐)", callback_data="topup_start")],
-            [InlineKeyboardButton(text="Открыть кошелёк и QR в Mini App", web_app=WebAppInfo(url=f"{PUBLIC_URL}/#wallet"))],
-            [InlineKeyboardButton(text="◀️ Главное меню", callback_data="main_menu")],
-        ]
-    )
-    await safe_edit(callback.message, "\n".join(lines), kb)
+    buttons = [
+        [InlineKeyboardButton(text=f"🎁 Отправить подарок ({OWNER_DISPLAY})", url=OWNER_URL)],
+        [InlineKeyboardButton(text="✅ Я отправил подарок (подать заявку)", callback_data="topup_start")],
+    ]
+    if PUBLIC_URL.startswith("https://"):
+        buttons.append([InlineKeyboardButton(text="Открыть кошелёк и QR в Mini App", web_app=WebAppInfo(url=f"{PUBLIC_URL}/#wallet"))])
+    buttons.append([InlineKeyboardButton(text="◀️ Главное меню", callback_data="main_menu")])
+
+    await safe_edit(callback.message, "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
 
 
 @dp.callback_query(F.data == "topup_start")
 async def cb_topup_start(callback: types.CallbackQuery, state: FSMContext) -> None:
     await state.set_state(TopUpFSM.waiting_amount)
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="wallet")]])
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f"🎁 Открыть профиль {OWNER_DISPLAY}", url=OWNER_URL)],
+            [
+                InlineKeyboardButton(text="15 ⭐", callback_data="top_amt:15"),
+                InlineKeyboardButton(text="25 ⭐", callback_data="top_amt:25"),
+                InlineKeyboardButton(text="50 ⭐", callback_data="top_amt:50"),
+                InlineKeyboardButton(text="100 ⭐", callback_data="top_amt:100"),
+            ],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="wallet")],
+        ]
+    )
     await safe_edit(
         callback.message,
-        f"➕ <b>Пополнение кошелька (шаг 1 из 2)</b>\n\n"
-        f"1. Отправьте нужное количество Telegram Stars аккаунту <b>{esc(OWNER_USERNAME)}</b>.\n"
-        f"2. Введите сюда точную сумму отправленных звёзд (например: <code>100</code>):",
+        f"🎁 <b>Заявка на пополнение (шаг 1 из 2)</b>\n\n"
+        f"Ссылка для отправки подарка: <a href=\"{OWNER_URL}\">{OWNER_URL}</a>\n\n"
+        f"Выберите сумму отправленного подарка кнопкой ниже или введите число вручную:",
         kb,
     )
     await callback.answer()
 
 
-@dp.message(TopUpFSM.waiting_amount)
-async def fsm_topup_amount(message: types.Message, state: FSMContext) -> None:
-    raw = (message.text or "").strip()
-    if not raw.isdigit() or not (1 <= int(raw) <= 500000):
-        await message.answer("Введите целое число звёзд от 1 до 500000.")
-        return
-    await state.update_data(amount_rp=int(raw))
+async def ask_topup_comment(target: types.Message, state: FSMContext, amount: int, is_edit: bool) -> None:
+    await state.update_data(amount_rp=amount)
     await state.set_state(TopUpFSM.waiting_comment)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -571,11 +663,30 @@ async def fsm_topup_amount(message: types.Message, state: FSMContext) -> None:
             [InlineKeyboardButton(text="❌ Отмена", callback_data="wallet")],
         ]
     )
-    await message.answer(
-        f"Сумма: <b>{raw} ⭐ → {raw} RP</b>.\n\nНапишите комментарий для владельца (например, как именно отправили звёзды) или нажмите «Отправить без комментария»:",
-        parse_mode="HTML",
-        reply_markup=kb,
+    text = (
+        f"🎁 <b>Сумма: {amount} ⭐ → {amount} RP (шаг 2 из 2)</b>\n\n"
+        f"Укажите какой подарок вы отправили (например: <i>мишка за 15</i>) или нажмите «Отправить без комментария»:"
     )
+    if is_edit:
+        await safe_edit(target, text, kb)
+    else:
+        await target.answer(text, parse_mode="HTML", reply_markup=kb)
+
+
+@dp.callback_query(TopUpFSM.waiting_amount, F.data.startswith("top_amt:"))
+async def fsm_topup_amount_btn(callback: types.CallbackQuery, state: FSMContext) -> None:
+    amt = int(callback.data.split(":", 1)[1])
+    await ask_topup_comment(callback.message, state, amt, is_edit=True)
+    await callback.answer()
+
+
+@dp.message(TopUpFSM.waiting_amount)
+async def fsm_topup_amount_txt(message: types.Message, state: FSMContext) -> None:
+    raw = (message.text or "").strip()
+    if not raw.isdigit() or not (1 <= int(raw) <= 500000):
+        await message.answer("Введите целое число звёзд от 1 до 500000.")
+        return
+    await ask_topup_comment(message, state, int(raw), is_edit=False)
 
 
 @dp.callback_query(TopUpFSM.waiting_comment, F.data == "topup_no_comment")
@@ -587,7 +698,7 @@ async def fsm_topup_submit_empty(callback: types.CallbackQuery, state: FSMContex
     await safe_edit(
         callback.message,
         f"⏳ <b>Заявка <code>{req['request_id']}</code> отправлена владельцу!</b>\n\n"
-        f"Сумма: <b>{req['amount_rp']} RP</b>.\nКак только владелец подтвердит получение звёзд, баланс обновится автоматически.",
+        f"Сумма: <b>{req['amount_rp']} RP</b>.\nКак только {esc(OWNER_DISPLAY)} подтвердит подарок, баланс зачислится автоматически.",
         kb,
     )
     await callback.answer("Заявка отправлена")
@@ -602,7 +713,7 @@ async def fsm_topup_submit_comment(message: types.Message, state: FSMContext) ->
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]])
     await message.answer(
         f"⏳ <b>Заявка <code>{req['request_id']}</code> отправлена владельцу!</b>\n\n"
-        f"Сумма: <b>{req['amount_rp']} RP</b>.\nКак только владелец подтвердит получение звёзд, придёт уведомление.",
+        f"Сумма: <b>{req['amount_rp']} RP</b>.\nКак только {esc(OWNER_DISPLAY)} подтвердит подарок, вам придёт уведомление.",
         parse_mode="HTML",
         reply_markup=kb,
     )
@@ -647,7 +758,7 @@ async def cb_withdraw_project(callback: types.CallbackQuery) -> None:
     uid = callback.from_user.id
     with get_db() as conn:
         row = conn.execute(
-            "SELECT balance_rp, title FROM merchants WHERE merchant_id = ? AND owner_tg_id = ?",
+            "SELECT balance_rp FROM merchants WHERE merchant_id = ? AND owner_tg_id = ?",
             (mid, uid),
         ).fetchone()
         if not row or row["balance_rp"] <= 0:
@@ -660,7 +771,7 @@ async def cb_withdraw_project(callback: types.CallbackQuery) -> None:
     asyncio.create_task(sync_db_to_telegram(f"Вывод {amt} RP из проекта {mid} на кошелёк {uid}"))
     card = build_project_card(mid, uid)
     await safe_edit(callback.message, card[0], card[1])
-    await callback.answer(f"✅ Переведено +{amt} RP на ваш личный кошелёк!", show_alert=True)
+    await callback.answer(f"✅ Переведено +{amt} RP на ваш кошелёк!", show_alert=True)
 
 
 @dp.callback_query(F.data == "new_project")
@@ -899,14 +1010,14 @@ async def cb_api_docs(callback: types.CallbackQuery) -> None:
         f'  "amount": 100,\n'
         f'  "external_order_id": "u_42"\n'
         f"}}</pre>\n"
-        f"Поле <code>checkout_deeplink</code> отдайте пользователю. При оплате придёт Telegram-сигнал и Webhook (<code>X-RoboPay-Signature</code>, HMAC-SHA256)."
+        f"Отдайте пользователю <code>checkout_deeplink</code>. При оплате придёт сигнал в ТГ и Webhook (<code>X-RoboPay-Signature</code>, HMAC-SHA256)."
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ Главное меню", callback_data="main_menu")]])
     await safe_edit(callback.message, text, kb)
     await callback.answer()
 
 
-# --- АДМИН-ПАНЕЛЬ, ОДОБРЕНИЕ ЗАЯВОК И БЭКАП (ТОЛЬКО ADMIN_ID) ---
+# --- АДМИН-ПАНЕЛЬ, ОДОБРЕНИЕ ЗАЯВОК И БЭКАП (СТРОГО ADMIN_ID) ---
 def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
     with get_db() as conn:
         u_cnt = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -920,9 +1031,9 @@ def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
         f"🛠 <b>Админ-панель RoboPay</b>\n\n"
         f"• Пользователей: <b>{u_cnt}</b> (на кошельках: {w_sum} RP)\n"
         f"• Проектов: <b>{p_cnt}</b>\n"
-        f"• Ожидают одобрения: <b>{pend_cnt}</b>\n"
+        f"• Заявок на проверку: <b>{pend_cnt}</b>\n"
         f"• Доход с комиссий: <b>{o_fee + t_fee} RP</b>\n"
-        f"• Аккаунт приёма Stars: <b>{esc(OWNER_USERNAME)}</b>"
+        f"• Приём подарков: <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a>"
     )
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -959,7 +1070,7 @@ async def cb_admin_topups(callback: types.CallbackQuery) -> None:
             """
         ).fetchone()
     if not req:
-        await callback.answer("Все заявки уже разобраны!", show_alert=True)
+        await callback.answer("Все заявки разобраны!", show_alert=True)
         return
 
     uname = f"@{req['username']}" if req["username"] else "без username"
@@ -999,7 +1110,7 @@ async def cb_review_topup(callback: types.CallbackQuery) -> None:
             (new_status, utc_now(), req_id),
         )
         if cur.rowcount == 0:
-            await callback.answer("Эта заявка уже обработана ранее.", show_alert=True)
+            await callback.answer("Заявка уже обработана.", show_alert=True)
             return
 
         req = conn.execute("SELECT * FROM topup_requests WHERE request_id = ?", (req_id,)).fetchone()
@@ -1020,7 +1131,6 @@ async def cb_review_topup(callback: types.CallbackQuery) -> None:
     )
     await callback.answer("Готово!")
 
-    # Уведомление пользователю
     try:
         if approve:
             await bot.send_message(
@@ -1031,8 +1141,9 @@ async def cb_review_topup(callback: types.CallbackQuery) -> None:
         else:
             await bot.send_message(
                 req["user_tg_id"],
-                f"❌ <b>Заявка <code>{req_id}</code> на {req['amount_rp']} RP отклонена.</b>\nЕсли вы уверены, что отправили звёзды, свяжитесь с {esc(OWNER_USERNAME)}.",
+                f"❌ <b>Заявка <code>{req_id}</code> на {req['amount_rp']} RP отклонена.</b>\nСвязь с владельцем: <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a>",
                 parse_mode="HTML",
+                disable_web_page_preview=True,
             )
     except Exception:
         pass
@@ -1053,6 +1164,19 @@ async def cmd_backup(message: types.Message) -> None:
         return
     msg_id = await sync_db_to_telegram("Ручной бэкап /backup")
     await message.answer(f"✅ Бэкап закреплён (ID: <code>{msg_id}</code>)." if msg_id else "⚠️ Ошибка бэкапа.", parse_mode="HTML")
+
+
+# --- ЖИВУЧИЙ POLLING-СУПЕРВИЗОР ---
+async def run_bot_polling() -> None:
+    while True:
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            await dp.start_polling(bot, handle_signals=False)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[Polling Error] {e} — перезапуск через 3 сек...")
+            await asyncio.sleep(3)
 
 
 # --- FASTAPI: REST API И MINI APP API ---
@@ -1087,6 +1211,8 @@ async def lifespan(app: FastAPI):
     await restore_db_from_telegram()
     me = await bot.get_me()
     BOT_USERNAME = me.username
+    print(f"[Startup] Бот @{BOT_USERNAME} запущен. Приём подарков: {OWNER_URL}")
+
     try:
         await bot.set_my_commands([BotCommand(command="start", description="Открыть меню RoboPay")])
         if PUBLIC_URL.startswith("https://"):
@@ -1096,14 +1222,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Bot Setup Warning] {e}")
 
-    polling_task = asyncio.create_task(dp.start_polling(bot))
+    polling_task = asyncio.create_task(run_bot_polling())
     yield
     polling_task.cancel()
+    try:
+        await polling_task
+    except asyncio.CancelledError:
+        pass
     await bot.session.close()
 
 
 app = FastAPI(title="RoboPay Gateway", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "bot": BOT_USERNAME}
 
 
 @app.get("/")
@@ -1163,7 +1298,8 @@ async def api_me(x_telegram_init_data: str = Header(default="")):
     history = sorted(paid_orders + tr_rows, key=lambda x: x["ts"] or "", reverse=True)[:10]
     return {
         "user": dict(u),
-        "owner_username": OWNER_USERNAME,
+        "owner_username": OWNER_DISPLAY,
+        "owner_url": OWNER_URL,
         "bot_username": BOT_USERNAME,
         "commission_rate": COMMISSION_RATE,
         "projects": projects,
@@ -1293,7 +1429,6 @@ async def api_pay_order(order_id: str, x_telegram_init_data: str = Header(defaul
         if order["status"] == "paid":
             raise HTTPException(status_code=409, detail="Счёт уже оплачен")
 
-        # Атомарное списание с кошелька покупателя
         cur_w = conn.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE tg_id = ? AND wallet_balance >= ?",
             (order["amount_rp"], payer_id, order["amount_rp"]),
@@ -1301,7 +1436,6 @@ async def api_pay_order(order_id: str, x_telegram_init_data: str = Header(defaul
         if cur_w.rowcount == 0:
             raise HTTPException(status_code=402, detail="Недостаточно средств на кошельке")
 
-        # Атомарное закрытие заказа (защита от двойной оплаты)
         cur_o = conn.execute(
             "UPDATE orders SET status = 'paid', payer_tg_id = ?, paid_at = ? WHERE order_id = ? AND status = 'pending'",
             (payer_id, now, order_id),
@@ -1323,4 +1457,4 @@ async def api_pay_order(order_id: str, x_telegram_init_data: str = Header(defaul
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=env_int("PORT", 8000), reload=False)
