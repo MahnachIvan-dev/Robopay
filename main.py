@@ -234,6 +234,16 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 paid_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS merchant_services (
+                service_id TEXT PRIMARY KEY, merchant_id TEXT NOT NULL, title TEXT NOT NULL,
+                description TEXT DEFAULT '', amount_rp INTEGER NOT NULL, active INTEGER DEFAULT 1,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS service_qr_campaigns (
+                campaign_id TEXT PRIMARY KEY, service_id TEXT NOT NULL, token TEXT UNIQUE NOT NULL,
+                max_uses INTEGER NOT NULL, uses_count INTEGER DEFAULT 0, expires_at TEXT NOT NULL,
+                active INTEGER DEFAULT 1, created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS topup_requests (
                 request_id TEXT PRIMARY KEY,
                 user_tg_id INTEGER NOT NULL,
@@ -299,6 +309,12 @@ def init_db() -> None:
                 ALTER TABLE orders_new RENAME TO orders;
                 """
             )
+
+
+    with get_db() as conn:
+        order_cols = {r["name"] for r in conn.execute("PRAGMA table_info(orders)").fetchall()}
+        if "campaign_id" not in order_cols:
+            conn.execute("ALTER TABLE orders ADD COLUMN campaign_id TEXT")
 
 
 def ensure_user(tg_id: int, username: Optional[str], first_name: Optional[str]) -> None:
@@ -402,6 +418,20 @@ async def resolve_groq_model(client: httpx.AsyncClient, exclude: Optional[str] =
 
 
 # --- БИЗНЕС-ЛОГИКА ---
+def create_service_order(service: dict, campaign_id: str) -> dict:
+    order_id = f"ord_{secrets.token_hex(6)}"
+    amount_rp = int(service["amount_rp"])
+    fee_rp = int(amount_rp * COMMISSION_RATE)
+    net_rp = max(1, amount_rp - fee_rp)
+    with get_db() as conn:
+        conn.execute("""INSERT INTO orders (order_id,merchant_id,external_order_id,title,description,amount_rp,fee_rp,net_rp,status,created_at,campaign_id)
+                        VALUES (?,?,NULL,?,?,?, ?,?,'pending',?,?)""",
+                     (order_id,service["merchant_id"],service["title"],service["description"],amount_rp,fee_rp,net_rp,utc_now(),campaign_id))
+    link=f"https://t.me/{BOT_USERNAME}?start=pay_{order_id}"
+    return {"order_id":order_id,"status":"pending","amount":amount_rp,"amount_rp":amount_rp,"fee_rp":fee_rp,"net_rp":net_rp,
+            "checkout_deeplink":link,"webapp_url":f"{PUBLIC_URL}/?order_id={order_id}","qr_payload":link}
+
+
 def create_order_record(merchant_id: str, title: str, description: str, amount_rp: int, external_order_id: Optional[str] = None) -> dict:
     order_id = f"ord_{secrets.token_hex(6)}"
     fee_rp = int(amount_rp * COMMISSION_RATE)
@@ -620,6 +650,19 @@ def build_project_card(mid: str, owner_id: int) -> Optional[tuple[str, InlineKey
 async def cmd_start(message: types.Message, command: CommandObject, state: FSMContext) -> None:
     await state.clear()
     ensure_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
+    if command.args and command.args.startswith("svc_"):
+        token=command.args[4:]
+        with get_db() as conn:
+            row=conn.execute("""SELECT q.*,s.merchant_id,s.title,s.description,s.amount_rp
+                FROM service_qr_campaigns q JOIN merchant_services s ON s.service_id=q.service_id
+                WHERE q.token=? AND q.active=1 AND s.active=1""",(token,)).fetchone()
+        if not row or row["expires_at"]<=utc_now() or row["uses_count"]>=row["max_uses"]:
+            await message.answer("Этот QR-код больше не действует. Попросите владельца услуги выпустить новый.")
+            return
+        order=create_service_order(dict(row),row["campaign_id"])
+        kb=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"Оплатить {row['amount_rp']} RP",web_app=WebAppInfo(url=order["webapp_url"]))]])
+        await message.answer(f"<b>{esc(row['title'])}</b>\n{esc(row['description'] or 'Оплата услуги RoboPay')}\n\nК оплате: <b>{row['amount_rp']} RP</b>",parse_mode="HTML",reply_markup=kb)
+        return
     if command.args and command.args.startswith("pay_"):
         oid = command.args[4:]
         with get_db() as conn:
@@ -1387,6 +1430,18 @@ class CreateInvoiceReq(BaseModel):
     external_order_id: Optional[str] = Field(default=None, max_length=128)
 
 
+class WebAppServiceReq(BaseModel):
+    merchant_id: str
+    title: str = Field(..., min_length=1, max_length=48)
+    amount: int = Field(..., ge=1, le=500000)
+    description: str = Field(default="", max_length=255)
+
+
+class WebAppServiceQrReq(BaseModel):
+    max_uses: int = Field(..., ge=1, le=1000000)
+    expires_hours: int = Field(default=168, ge=1, le=8760)
+
+
 class WebAppInvoiceReq(BaseModel):
     merchant_id: str
     title: str = Field(..., min_length=1, max_length=48)
@@ -1603,6 +1658,51 @@ async def api_transfer(req: TransferReq, x_telegram_init_data: str = Header(defa
     return {"transfer_id": tid, "net_rp": net_rp, "fee_rp": fee_rp, "wallet_balance": from_bal}
 
 
+@app.get("/api/v1/webapp/services")
+async def api_wa_services(x_telegram_init_data: str = Header(default="")):
+    uid=int(verify_telegram_init_data(x_telegram_init_data)["id"])
+    with get_db() as conn:
+        rows=conn.execute("""SELECT s.*, q.campaign_id, q.token, q.max_uses, q.uses_count, q.expires_at, q.active AS qr_active
+          FROM merchant_services s JOIN merchants m ON m.merchant_id=s.merchant_id
+          LEFT JOIN service_qr_campaigns q ON q.campaign_id=(SELECT q2.campaign_id FROM service_qr_campaigns q2 WHERE q2.service_id=s.service_id ORDER BY q2.created_at DESC LIMIT 1)
+          WHERE m.owner_tg_id=? ORDER BY s.created_at DESC""",(uid,)).fetchall()
+    result=[]
+    for row in rows:
+        d=dict(row)
+        d["qr_active"]=bool(d.get("qr_active")) and d.get("expires_at","")>utc_now() and int(d.get("uses_count") or 0)<int(d.get("max_uses") or 0)
+        d["qr_payload"]=f"https://t.me/{BOT_USERNAME}?start=svc_{d['token']}" if d.get("token") else None
+        result.append(d)
+    return {"services":result}
+
+
+@app.post("/api/v1/webapp/services")
+async def api_wa_create_service(req: WebAppServiceReq, x_telegram_init_data: str = Header(default="")):
+    uid=int(verify_telegram_init_data(x_telegram_init_data)["id"])
+    with get_db() as conn:
+        if not conn.execute("SELECT 1 FROM merchants WHERE merchant_id=? AND owner_tg_id=?",(req.merchant_id,uid)).fetchone():
+            raise HTTPException(status_code=403,detail="Проект не найден")
+        sid=f"svc_{secrets.token_hex(6)}"; now=utc_now()
+        conn.execute("INSERT INTO merchant_services (service_id,merchant_id,title,description,amount_rp,active,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)",
+                     (sid,req.merchant_id,req.title.strip(),req.description.strip(),req.amount,now,now))
+    asyncio.create_task(sync_db_to_telegram(f"Услуга {sid}"))
+    return {"service_id":sid,"title":req.title.strip(),"amount_rp":req.amount,"status":"saved"}
+
+
+@app.post("/api/v1/webapp/services/{service_id}/qr")
+async def api_wa_create_service_qr(service_id: str, req: WebAppServiceQrReq, x_telegram_init_data: str = Header(default="")):
+    uid=int(verify_telegram_init_data(x_telegram_init_data)["id"])
+    from datetime import timedelta
+    with get_db() as conn:
+        service=conn.execute("SELECT s.* FROM merchant_services s JOIN merchants m ON m.merchant_id=s.merchant_id WHERE s.service_id=? AND m.owner_tg_id=? AND s.active=1",(service_id,uid)).fetchone()
+        if not service: raise HTTPException(status_code=404,detail="Услуга не найдена")
+        token=secrets.token_urlsafe(12); cid=f"qrc_{secrets.token_hex(6)}"
+        expiry=(datetime.now(timezone.utc)+timedelta(hours=req.expires_hours)).isoformat()
+        conn.execute("INSERT INTO service_qr_campaigns (campaign_id,service_id,token,max_uses,uses_count,expires_at,active,created_at) VALUES (?,?,?,?,0,?,1,?)",
+                     (cid,service_id,token,req.max_uses,expiry,utc_now()))
+    link=f"https://t.me/{BOT_USERNAME}?start=svc_{token}"
+    return {"campaign_id":cid,"qr_payload":link,"checkout_deeplink":link,"max_uses":req.max_uses,"uses_count":0,"expires_at":expiry}
+
+
 @app.post("/api/v1/webapp/invoices")
 async def api_wa_inv(req: WebAppInvoiceReq, x_telegram_init_data: str = Header(default="")):
     uid = int(verify_telegram_init_data(x_telegram_init_data)["id"])
@@ -1651,10 +1751,16 @@ async def api_pay_order(order_id: str, x_telegram_init_data: str = Header(defaul
             raise HTTPException(status_code=404, detail="Счёт не найден")
         if o["status"] == "paid":
             raise HTTPException(status_code=409, detail="Счёт уже оплачен")
+        if o["campaign_id"]:
+            campaign=conn.execute("SELECT * FROM service_qr_campaigns WHERE campaign_id=?",(o["campaign_id"],)).fetchone()
+            if not campaign or not campaign["active"] or campaign["expires_at"]<=now or campaign["uses_count"]>=campaign["max_uses"]:
+                raise HTTPException(status_code=410,detail="Срок действия или лимит QR-кода исчерпан")
         if conn.execute("UPDATE users SET wallet_balance = wallet_balance - ? WHERE tg_id = ? AND wallet_balance >= ?", (o["amount_rp"], pid, o["amount_rp"])).rowcount == 0:
             raise HTTPException(status_code=402, detail="Недостаточно средств на кошельке")
         if conn.execute("UPDATE orders SET status = 'paid', payer_tg_id = ?, paid_at = ? WHERE order_id = ? AND status = 'pending'", (pid, now, order_id)).rowcount == 0:
             raise HTTPException(status_code=409, detail="Счёт уже оплачен")
+        if o["campaign_id"]:
+            conn.execute("UPDATE service_qr_campaigns SET uses_count=uses_count+1, active=CASE WHEN uses_count+1>=max_uses THEN 0 ELSE active END WHERE campaign_id=?",(o["campaign_id"],))
         conn.execute("UPDATE merchants SET balance_rp = balance_rp + ? WHERE merchant_id = ?", (o["net_rp"], o["merchant_id"]))
         upd = dict(conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone())
         mrc = dict(conn.execute("SELECT * FROM merchants WHERE merchant_id = ?", (o["merchant_id"],)).fetchone())
