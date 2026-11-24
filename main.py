@@ -10,7 +10,7 @@ import secrets
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, List, Optional, Set
 from urllib.parse import parse_qsl
 
 import httpx
@@ -29,7 +29,7 @@ from aiogram.types import (
     MenuButtonWebApp,
     WebAppInfo,
 )
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -57,17 +57,18 @@ def normalize_owner(raw: str) -> tuple[str, str]:
     return f"@{cleaned}", f"https://t.me/{cleaned}"
 
 
-# --- КОНФИГУРАЦИЯ (из Variables в Railway) ---
+# --- КОНФИГУРАЦИЯ ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
 OWNER_DISPLAY, OWNER_URL = normalize_owner(os.getenv("OWNER_USERNAME", "@owner"))
-COMMISSION_RATE = env_float("COMMISSION_RATE", 0.05)        # 5% на переводы и счета
-WITHDRAW_FEE_RATE = env_float("WITHDRAW_FEE_RATE", 0.20)    # 20% комиссия на вывод подарком
+COMMISSION_RATE = env_float("COMMISSION_RATE", 0.05)
+WITHDRAW_FEE_RATE = env_float("WITHDRAW_FEE_RATE", 0.20)
 DB_PATH = os.getenv("DB_PATH", "gateway.db").strip() or "gateway.db"
 DB_CHANNEL_ID = env_int("DB_CHANNEL_ID", 0)
 ADMIN_ID = env_int("ADMIN_ID", 0)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
 
-# Стандартные подарки Telegram до 100 ⭐: номинал -> ~звёзд при обмене в ТГ (85%)
 GIFT_TIERS = {15: 13, 25: 21, 50: 43, 100: 85}
 MAX_TOPUP_STARS = 100
 
@@ -80,6 +81,38 @@ BOT_USERNAME = ""
 db_sync_lock = asyncio.Lock()
 
 
+# --- REAL-TIME WEBSOCKET ХАБ (БОТ <-> MINI APP) ---
+class RealtimeHub:
+    def __init__(self) -> None:
+        self.clients: Dict[int, Set[WebSocket]] = {}
+
+    async def connect(self, tg_id: int, ws: WebSocket) -> None:
+        await ws.accept()
+        self.clients.setdefault(tg_id, set()).add(ws)
+
+    def disconnect(self, tg_id: int, ws: WebSocket) -> None:
+        conns = self.clients.get(tg_id)
+        if conns:
+            conns.discard(ws)
+            if not conns:
+                self.clients.pop(tg_id, None)
+
+    async def push(self, tg_id: int, payload: dict) -> None:
+        conns = list(self.clients.get(tg_id, set()))
+        dead = []
+        for ws in conns:
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(tg_id, ws)
+
+
+rt_hub = RealtimeHub()
+
+
+# --- FSM ---
 class CreateProjectFSM(StatesGroup):
     waiting_title = State()
     waiting_webhook = State()
@@ -112,18 +145,20 @@ def utc_now() -> str:
 
 
 def calc_withdraw_cost(gift_stars: int) -> tuple[int, int, int]:
-    """Возвращает (стоимость_в_RP, комиссия_в_RP, примерно_звёзд_получит_юзер)."""
     fee_rp = math.ceil(gift_stars * WITHDRAW_FEE_RATE) if WITHDRAW_FEE_RATE > 0 else 0
-    cost_rp = gift_stars + fee_rp
-    receive_stars = GIFT_TIERS.get(gift_stars, int(gift_stars * 0.85))
-    return cost_rp, fee_rp, receive_stars
+    return gift_stars + fee_rp, fee_rp, GIFT_TIERS.get(gift_stars, int(gift_stars * 0.85))
 
 
 async def safe_edit(message: types.Message, text: str, reply_markup: InlineKeyboardMarkup) -> None:
     try:
         await message.edit_text(text, parse_mode="HTML", reply_markup=reply_markup, disable_web_page_preview=True)
-    except TelegramBadRequest:
-        pass
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            print(f"[safe_edit fallback] {e}")
+            try:
+                await message.answer(text, parse_mode="HTML", reply_markup=reply_markup, disable_web_page_preview=True)
+            except Exception as e2:
+                print(f"[safe_edit answer error] {e2}")
 
 
 def verify_telegram_init_data(init_data: str) -> dict:
@@ -146,7 +181,7 @@ def verify_telegram_init_data(init_data: str) -> dict:
         raise HTTPException(status_code=401, detail="Ошибка авторизации Telegram")
 
 
-# --- БАЗА ДАННЫХ И СИНХРОНИЗАЦИЯ С ТГ-КАНАЛОМ ---
+# --- БАЗА ДАННЫХ И ТГ-БЭКАПЫ ---
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -226,7 +261,6 @@ def init_db() -> None:
             );
             """
         )
-        # Автомиграция старых баз из ТГ-канала
         if "wallet_balance" not in table_cols(conn, "users"):
             conn.execute("ALTER TABLE users ADD COLUMN wallet_balance INTEGER DEFAULT 0")
         m_cols = table_cols(conn, "merchants")
@@ -269,6 +303,12 @@ def ensure_user(tg_id: int, username: Optional[str], first_name: Optional[str]) 
         )
 
 
+def get_wallet_balance(tg_id: int) -> int:
+    with get_db() as conn:
+        row = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (tg_id,)).fetchone()
+    return row["wallet_balance"] if row else 0
+
+
 async def restore_db_from_telegram() -> None:
     if not DB_CHANNEL_ID:
         init_db()
@@ -281,7 +321,7 @@ async def restore_db_from_telegram() -> None:
             print(f"[DB Sync] Восстановлена из канала (#{chat.pinned_message.message_id}).")
             return
     except Exception as e:
-        print(f"[DB Sync] Первый запуск / ошибка скачивания: {e}")
+        print(f"[DB Sync] Первый запуск / ошибка: {e}")
     init_db()
     await sync_db_to_telegram("Инициализация БД RoboPay")
 
@@ -311,7 +351,7 @@ async def sync_db_to_telegram(reason: str = "Синхронизация") -> Opt
                 os.remove(snap)
 
 
-# --- БИЗНЕС-ОПЕРАЦИИ ---
+# --- БИЗНЕС-ЛОГИКА ---
 def create_order_record(merchant_id: str, title: str, description: str, amount_rp: int, external_order_id: Optional[str] = None) -> dict:
     order_id = f"ord_{secrets.token_hex(6)}"
     fee_rp = int(amount_rp * COMMISSION_RATE)
@@ -354,7 +394,7 @@ async def create_topup_request(user_tg_id: int, amount_rp: int, comment: str) ->
             await bot.send_message(
                 ADMIN_ID,
                 f"🎁 <b>Заявка на пополнение</b> <code>{req_id}</code>\n\n"
-                f"• Клиент: <b>{fname}</b> ({uname}, ID <code>{user_tg_id}</code>)\n"
+                f"• Клиент: <a href=\"tg://user?id={user_tg_id}\">{fname}</a> ({uname}, <code>{user_tg_id}</code>)\n"
                 f"• Сумма подарка: <b>{amount_rp} ⭐ → {amount_rp} RP</b>\n"
                 f"• Комментарий: <i>{esc(comment or '—')}</i>",
                 parse_mode="HTML", reply_markup=kb,
@@ -387,29 +427,32 @@ async def create_withdraw_request(user_tg_id: int, gift_stars: int, target_note:
         )
         u = conn.execute("SELECT username, first_name, wallet_balance FROM users WHERE tg_id = ?", (user_tg_id,)).fetchone()
 
-    asyncio.create_task(sync_db_to_telegram(f"Вывод {req_id} (подарок {gift_stars}⭐, списано {cost_rp} RP)"))
+    asyncio.create_task(sync_db_to_telegram(f"Вывод {req_id} (подарок {gift_stars}⭐, -{cost_rp} RP)"))
+    asyncio.create_task(rt_hub.push(user_tg_id, {
+        "type": "sync", "wallet_balance": u["wallet_balance"],
+        "notify": f"Заявка на вывод {gift_stars} ⭐ создана", "emotion": "happy",
+    }))
 
     if ADMIN_ID:
         uname = f"@{u['username']}" if u and u["username"] else "без username"
-        profile_url = f"https://t.me/{u['username']}" if u and u["username"] else f"tg://user?id={user_tg_id}"
         fname = esc(u["first_name"] if u else "Пользователь")
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🎁 Открыть профиль клиента", url=profile_url)],
-            [
-                InlineKeyboardButton(text=f"✅ Одобрить (отправил {gift_stars} ⭐)", callback_data=f"wdr_ok:{req_id}"),
-                InlineKeyboardButton(text="❌ Отклонить (вернуть RP)", callback_data=f"wdr_no:{req_id}"),
-            ],
+        rows_kb = []
+        # URL-кнопку добавляем только если есть публичный @username (иначе Telegram даёт privacy error)
+        if u and u["username"]:
+            rows_kb.append([InlineKeyboardButton(text=f"🎁 Открыть @{u['username']}", url=f"https://t.me/{u['username']}")])
+        rows_kb.append([
+            InlineKeyboardButton(text=f"✅ Одобрить ({gift_stars} ⭐)", callback_data=f"wdr_ok:{req_id}"),
+            InlineKeyboardButton(text="❌ Отклонить", callback_data=f"wdr_no:{req_id}"),
         ])
         try:
             await bot.send_message(
                 ADMIN_ID,
                 f"📤 <b>Заявка на вывод подарком</b> <code>{req_id}</code>\n\n"
-                f"• Клиент: <b>{fname}</b> ({uname}, ID <code>{user_tg_id}</code>)\n"
+                f"• Клиент: <a href=\"tg://user?id={user_tg_id}\">{fname}</a> ({uname}, ID <code>{user_tg_id}</code>)\n"
                 f"• Отправить подарок на: <b>{gift_stars} ⭐</b> (~{receive_stars} ⭐ после обмена)\n"
                 f"• Списано с кошелька: <b>{cost_rp} RP</b> (комиссия: {fee_rp} RP)\n"
-                f"• Примечание: <i>{esc(target_note or '—')}</i>\n\n"
-                f"Отправьте подарок клиенту и нажмите «Одобрить»:",
-                parse_mode="HTML", reply_markup=kb,
+                f"• Примечание: <i>{esc(target_note or '—')}</i>",
+                parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=rows_kb),
             )
         except Exception as e:
             print(f"[Admin Withdraw Notify Error] {e}")
@@ -433,6 +476,14 @@ async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
     except Exception:
         pass
 
+    # Real-time пуш владельцу проекта
+    asyncio.create_task(rt_hub.push(merchant["owner_tg_id"], {
+        "type": "sync",
+        "wallet_balance": get_wallet_balance(merchant["owner_tg_id"]),
+        "notify": f"Оплата +{order['net_rp']} RP ({order['title']})",
+        "emotion": "happy",
+    }))
+
     if merchant.get("webhook_url"):
         body = json.dumps({
             "event": "payment.succeeded", "order_id": order["order_id"],
@@ -451,32 +502,39 @@ async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
                     await asyncio.sleep(1.5 * (attempt + 1))
 
 
-# --- ИНТЕРФЕЙС БОТА ---
+# --- ПРИВЕТСТВИЕ И МЕНЮ БОТА ---
 def build_main_menu(user: types.User) -> tuple[str, InlineKeyboardMarkup]:
+    ensure_user(user.id, user.username, user.first_name)
     with get_db() as conn:
         u = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (user.id,)).fetchone()
         ms = conn.execute("SELECT COUNT(*) AS cnt, COALESCE(SUM(balance_rp), 0) AS bal FROM merchants WHERE owner_tg_id = ?", (user.id,)).fetchone()
     w_bal = u["wallet_balance"] if u else 0
+
     text = (
-        f"<b>RoboPay</b> — платёжный терминал\n\n"
-        f"Аккаунт <b>{esc(user.first_name)}</b> привязан (ID: <code>{user.id}</code>).\n"
-        f"Пополняйте баланс подарками до 100 ⭐, оплачивайте услуги по QR и выводите RP обратно в звёзды.\n\n"
-        f"• Кошелёк: <b>{w_bal} RP</b>\n"
-        f"• Проекты ({ms['cnt']}): <b>{ms['bal']} RP</b>"
+        f"👋 <b>Привет, {esc(user.first_name)}! Это RoboPay.</b>\n\n"
+        f"<b>Для чего нужен RoboPay:</b>\n"
+        f"• <b>Мгновенные оплаты по QR и ссылкам</b> — платите за услуги и переводите друзьям во внутренней валюте <b>RP</b> (1 ⭐ = 1 RP).\n"
+        f"• <b>Пополнение и вывод подарками Telegram</b> — пополняйте баланс подарками до 100 ⭐ и выводите RP обратно в звёзды.\n"
+        f"• <b>Платёжный шлюз для ваших проектов</b> — подключайте своего бота или канал и получайте мгновенные сигналы об оплате.\n"
+        f"• <b>Живой ИИ-робот техподдержки</b> — отвечает голосом и текстом 24/7.\n\n"
+        f"👤 ID: <code>{user.id}</code>  |  💳 Кошелёк: <b>{w_bal} RP</b>  |  📦 Проекты ({ms['cnt']}): <b>{ms['bal']} RP</b>"
     )
+
     btns = []
     if PUBLIC_URL.startswith("https://"):
-        btns.append([InlineKeyboardButton(text="Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
-    btns.extend([
-        [
-            InlineKeyboardButton(text="💳 Кошелёк / Вывод", callback_data="wallet"),
-            InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
-        ],
-        [
-            InlineKeyboardButton(text="📦 Мои проекты", callback_data="projects"),
-            InlineKeyboardButton(text="📖 API", callback_data="api_docs"),
-        ],
+        btns.append([InlineKeyboardButton(text="👁 Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
+    btns.append([
+        InlineKeyboardButton(text="💳 Кошелёк / Вывод", callback_data="wallet"),
+        InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
     ])
+    row2 = [InlineKeyboardButton(text="📦 Мои проекты", callback_data="projects")]
+    if PUBLIC_URL.startswith("https://"):
+        row2.append(InlineKeyboardButton(text="💬 Техподдержка", web_app=WebAppInfo(url=f"{PUBLIC_URL}/?page=support")))
+    else:
+        row2.append(InlineKeyboardButton(text="📖 API", callback_data="api_docs"))
+    btns.append(row2)
+    if PUBLIC_URL.startswith("https://"):
+        btns.append([InlineKeyboardButton(text="📖 Документация API", callback_data="api_docs")])
     if is_admin(user.id):
         btns.append([InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")])
     return text, InlineKeyboardMarkup(inline_keyboard=btns)
@@ -526,8 +584,13 @@ async def cmd_start(message: types.Message, command: CommandObject, state: FSMCo
         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"Оплатить {o['amount_rp']} RP", web_app=WebAppInfo(url=f"{PUBLIC_URL}/?order_id={oid}"))]])
         await message.answer(f"<b>Счёт • {esc(o['m_title'])}</b>\n\n• Услуга: <b>{esc(o['title'])}</b>\n• К оплате: <b>{o['amount_rp']} RP</b>", parse_mode="HTML", reply_markup=kb)
         return
+    if command.args and command.args.startswith("uid_"):
+        target_uid = command.args[4:]
+        kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"Перевести на ID {target_uid}", web_app=WebAppInfo(url=f"{PUBLIC_URL}/?to_uid={target_uid}"))]])
+        await message.answer(f"💸 <b>Перевод в RoboPay</b>\nПолучатель: <code>{esc(target_uid)}</code>", parse_mode="HTML", reply_markup=kb)
+        return
     text, kb = build_main_menu(message.from_user)
-    await message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await message.answer(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
 
 @dp.callback_query(F.data == "main_menu")
@@ -538,17 +601,16 @@ async def cb_main_menu(cb: types.CallbackQuery, state: FSMContext) -> None:
     await cb.answer()
 
 
-# --- КОШЕЛЁК, ПОПОЛНЕНИЕ И ВЫВОД В БОТЕ ---
+# --- КОШЕЛЁК, ПОПОЛНЕНИЕ И ВЫВОД ---
 @dp.callback_query(F.data == "wallet")
 async def cb_wallet(cb: types.CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    with get_db() as conn:
-        u = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (cb.from_user.id,)).fetchone()
-    bal = u["wallet_balance"] if u else 0
+    ensure_user(cb.from_user.id, cb.from_user.username, cb.from_user.first_name)
+    bal = get_wallet_balance(cb.from_user.id)
     text = (
         f"💳 <b>Кошелёк RoboPay</b>\n\n"
         f"• Баланс: <b>{bal} RP</b>\n"
-        f"• Пополнение подарком до <b>{MAX_TOPUP_STARS} ⭐</b> на <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a> ({OWNER_URL})\n"
+        f"• Пополнение подарком до <b>{MAX_TOPUP_STARS} ⭐</b> на <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a>\n"
         f"• Вывод подарком с комиссией <b>{int(WITHDRAW_FEE_RATE * 100)}%</b> (15, 25, 50, 100 ⭐)"
     )
     btns = [
@@ -559,7 +621,7 @@ async def cb_wallet(cb: types.CallbackQuery, state: FSMContext) -> None:
         ],
     ]
     if PUBLIC_URL.startswith("https://"):
-        btns.append([InlineKeyboardButton(text="Открыть кошелёк в Mini App", web_app=WebAppInfo(url=f"{PUBLIC_URL}/#wallet"))])
+        btns.append([InlineKeyboardButton(text="Открыть кошелёк в Mini App", web_app=WebAppInfo(url=f"{PUBLIC_URL}/?page=wallet"))])
     btns.append([InlineKeyboardButton(text="◀️ Главное меню", callback_data="main_menu")])
     await safe_edit(cb.message, text, InlineKeyboardMarkup(inline_keyboard=btns))
     await cb.answer()
@@ -570,20 +632,10 @@ async def cb_topup_start(cb: types.CallbackQuery, state: FSMContext) -> None:
     await state.set_state(TopUpFSM.waiting_amount)
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🎁 Перейти к {OWNER_DISPLAY}", url=OWNER_URL)],
-        [
-            InlineKeyboardButton(text="15 ⭐", callback_data="top_amt:15"),
-            InlineKeyboardButton(text="25 ⭐", callback_data="top_amt:25"),
-            InlineKeyboardButton(text="50 ⭐", callback_data="top_amt:50"),
-            InlineKeyboardButton(text="100 ⭐", callback_data="top_amt:100"),
-        ],
+        [InlineKeyboardButton(text=f"{x} ⭐", callback_data=f"top_amt:{x}") for x in (15, 25, 50, 100)],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="wallet")],
     ])
-    await safe_edit(
-        cb.message,
-        f"🎁 <b>Пополнение подарком (до {MAX_TOPUP_STARS} ⭐)</b>\n\n"
-        f"Отправьте подарок на <a href=\"{OWNER_URL}\">{OWNER_URL}</a>, затем выберите номинал ниже (или введите число до 100):",
-        kb,
-    )
+    await safe_edit(cb.message, f"🎁 <b>Пополнение подарком (до {MAX_TOPUP_STARS} ⭐)</b>\n\nОтправьте подарок на <a href=\"{OWNER_URL}\">{OWNER_URL}</a>, затем выберите номинал:", kb)
     await cb.answer()
 
 
@@ -621,8 +673,7 @@ async def fsm_topup_empty(cb: types.CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
     await state.clear()
     req = await create_topup_request(cb.from_user.id, data["amount_rp"], "")
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]])
-    await safe_edit(cb.message, f"⏳ Заявка <code>{req['request_id']}</code> на <b>{req['amount_rp']} RP</b> отправлена владельцу.", kb)
+    await safe_edit(cb.message, f"⏳ Заявка <code>{req['request_id']}</code> на <b>{req['amount_rp']} RP</b> отправлена владельцу.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]]))
     await cb.answer("Заявка отправлена")
 
 
@@ -631,19 +682,18 @@ async def fsm_topup_comm(msg: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
     await state.clear()
     req = await create_topup_request(msg.from_user.id, data["amount_rp"], (msg.text or "").strip())
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]])
-    await msg.answer(f"⏳ Заявка <code>{req['request_id']}</code> на <b>{req['amount_rp']} RP</b> отправлена владельцу.", parse_mode="HTML", reply_markup=kb)
+    await msg.answer(f"⏳ Заявка <code>{req['request_id']}</code> на <b>{req['amount_rp']} RP</b> отправлена владельцу.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]]))
 
 
 @dp.callback_query(F.data == "withdraw_menu")
 async def cb_withdraw_menu(cb: types.CallbackQuery) -> None:
-    with get_db() as conn:
-        bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (cb.from_user.id,)).fetchone()["wallet_balance"]
+    ensure_user(cb.from_user.id, cb.from_user.username, cb.from_user.first_name)
+    bal = get_wallet_balance(cb.from_user.id)
     lines = [
         f"📤 <b>Вывод RP подарком Telegram</b>\n",
         f"• Ваш баланс: <b>{bal} RP</b>",
         f"• Комиссия вывода: <b>{int(WITHDRAW_FEE_RATE * 100)}%</b>\n",
-        "Выберите номинал подарка (рядом указана цена в RP и сколько ⭐ вы получите при обмене в ТГ):",
+        "Выберите подарок (рядом цена в RP и сколько ⭐ вы получите при обмене):",
     ]
     btns = []
     for g in GIFT_TIERS:
@@ -656,20 +706,18 @@ async def cb_withdraw_menu(cb: types.CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("wdr_req:"))
 async def cb_withdraw_create(cb: types.CallbackQuery) -> None:
-    gift = int(cb.data.split(":")[1])
+    ensure_user(cb.from_user.id, cb.from_user.username, cb.from_user.first_name)
     try:
-        res = await create_withdraw_request(cb.from_user.id, gift)
+        res = await create_withdraw_request(cb.from_user.id, int(cb.data.split(":")[1]))
     except HTTPException as e:
         await cb.answer(e.detail, show_alert=True)
         return
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]])
     await safe_edit(
         cb.message,
         f"⏳ <b>Заявка на вывод <code>{res['request_id']}</code> отправлена!</b>\n\n"
         f"• Подарок: <b>{res['gift_stars']} ⭐</b> (~{res['receive_stars']} ⭐ при обмене)\n"
-        f"• Списано: <b>{res['cost_rp']} RP</b> (остаток: {res['wallet_balance']} RP)\n\n"
-        f"Как только владелец отправит подарок, вам придёт уведомление.",
-        kb,
+        f"• Списано: <b>{res['cost_rp']} RP</b> (остаток: {res['wallet_balance']} RP)",
+        InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ В кошелёк", callback_data="wallet")]]),
     )
     await cb.answer("Заявка создана")
 
@@ -708,7 +756,9 @@ async def cb_withdraw_proj(cb: types.CallbackQuery) -> None:
         amt = r["balance_rp"]
         conn.execute("UPDATE merchants SET balance_rp = 0 WHERE merchant_id = ? AND balance_rp = ?", (mid, amt))
         conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (amt, uid))
+        new_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (uid,)).fetchone()["wallet_balance"]
     asyncio.create_task(sync_db_to_telegram(f"Вывод {amt} RP с проекта {mid}"))
+    asyncio.create_task(rt_hub.push(uid, {"type": "sync", "wallet_balance": new_bal, "notify": f"+{amt} RP с проекта на кошелёк", "emotion": "happy"}))
     card = build_project_card(mid, uid)
     await safe_edit(cb.message, card[0], card[1])
     await cb.answer(f"+{amt} RP на кошелёк!", show_alert=True)
@@ -899,13 +949,13 @@ async def cb_api_docs(cb: types.CallbackQuery) -> None:
         f"<code>POST {PUBLIC_URL}/api/v1/invoices</code>\n"
         f"Заголовок: <code>X-API-Key: ваш_ключ</code>\n"
         f'<pre>{{"title":"Услуга","amount":50,"external_order_id":"u_1"}}</pre>'
-        f"В ответе вернётся <code>checkout_deeplink</code>. При оплате придёт сигнал и HMAC-SHA256 Webhook."
+        f"В ответе вернётся <code>checkout_deeplink</code>. При оплате придёт сигнал в ТГ и HMAC-SHA256 Webhook."
     )
     await safe_edit(cb.message, text, InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="◀️ Меню", callback_data="main_menu")]]))
     await cb.answer()
 
 
-# --- АДМИН-ПАНЕЛЬ, ОДОБРЕНИЕ ПОПОЛНЕНИЙ И ВЫВОДОВ (СТРОГО ADMIN_ID) ---
+# --- АДМИН-ПАНЕЛЬ (ИСПРАВЛЕННЫЙ ПРОСМОТР ВЫВОДОВ И ПОПОЛНЕНИЙ) ---
 def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
     with get_db() as conn:
         u_cnt = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -944,44 +994,68 @@ async def cb_admin(cb: types.CallbackQuery) -> None:
 @dp.callback_query(F.data == "admin_topups")
 async def cb_admin_topups(cb: types.CallbackQuery) -> None:
     if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True)
         return
     with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM topup_requests WHERE status = 'pending'").fetchone()[0]
         r = conn.execute("SELECT r.*, u.username, u.first_name FROM topup_requests r LEFT JOIN users u ON r.user_tg_id = u.tg_id WHERE r.status = 'pending' ORDER BY r.created_at ASC LIMIT 1").fetchone()
     if not r:
-        await cb.answer("Нет новых заявок на пополнение", show_alert=True)
+        await cb.answer("Нет ожидающих заявок на пополнение", show_alert=True)
         return
     uname = f"@{r['username']}" if r["username"] else "без username"
+    fname = esc(r["first_name"] or "Пользователь")
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"✅ Одобрить (+{r['amount_rp']} RP)", callback_data=f"topup_ok:{r['request_id']}"), InlineKeyboardButton(text="❌ Отклонить", callback_data=f"topup_no:{r['request_id']}")],
         [InlineKeyboardButton(text="◀️ Админ-панель", callback_data="admin_panel")],
     ])
-    await safe_edit(cb.message, f"📥 <b>Пополнение <code>{r['request_id']}</code></b>\n• Клиент: <b>{esc(r['first_name'])}</b> ({uname}, <code>{r['user_tg_id']}</code>)\n• Сумма: <b>{r['amount_rp']} ⭐ → {r['amount_rp']} RP</b>\n• Комментарий: <i>{esc(r['comment'] or '—')}</i>", kb)
+    await safe_edit(
+        cb.message,
+        f"📥 <b>Пополнение (1 из {total}) • <code>{r['request_id']}</code></b>\n\n"
+        f"• Клиент: <a href=\"tg://user?id={r['user_tg_id']}\">{fname}</a> ({uname}, <code>{r['user_tg_id']}</code>)\n"
+        f"• Сумма: <b>{r['amount_rp']} ⭐ → {r['amount_rp']} RP</b>\n"
+        f"• Комментарий: <i>{esc(r['comment'] or '—')}</i>",
+        kb,
+    )
     await cb.answer()
 
 
 @dp.callback_query(F.data == "admin_withdraws")
 async def cb_admin_withdraws(cb: types.CallbackQuery) -> None:
     if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True)
         return
     with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM withdraw_requests WHERE status = 'pending'").fetchone()[0]
         r = conn.execute("SELECT r.*, u.username, u.first_name FROM withdraw_requests r LEFT JOIN users u ON r.user_tg_id = u.tg_id WHERE r.status = 'pending' ORDER BY r.created_at ASC LIMIT 1").fetchone()
     if not r:
-        await cb.answer("Нет новых заявок на вывод", show_alert=True)
+        await cb.answer("Нет ожидающих заявок на вывод", show_alert=True)
         return
     uname = f"@{r['username']}" if r["username"] else "без username"
-    purl = f"https://t.me/{r['username']}" if r["username"] else f"tg://user?id={r['user_tg_id']}"
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Профиль клиента", url=purl)],
-        [InlineKeyboardButton(text=f"✅ Одобрить ({r['gift_stars']} ⭐)", callback_data=f"wdr_ok:{r['request_id']}"), InlineKeyboardButton(text="❌ Отклонить", callback_data=f"wdr_no:{r['request_id']}")],
-        [InlineKeyboardButton(text="◀️ Админ-панель", callback_data="admin_panel")],
+    fname = esc(r["first_name"] or "Пользователь")
+    rows_kb = []
+    if r["username"]:
+        rows_kb.append([InlineKeyboardButton(text=f"🎁 Открыть профиль @{r['username']}", url=f"https://t.me/{r['username']}")])
+    rows_kb.append([
+        InlineKeyboardButton(text=f"✅ Одобрить ({r['gift_stars']} ⭐)", callback_data=f"wdr_ok:{r['request_id']}"),
+        InlineKeyboardButton(text="❌ Отклонить", callback_data=f"wdr_no:{r['request_id']}"),
     ])
-    await safe_edit(cb.message, f"📤 <b>Вывод <code>{r['request_id']}</code></b>\n• Клиент: <b>{esc(r['first_name'])}</b> ({uname}, <code>{r['user_tg_id']}</code>)\n• Отправить подарок: <b>{r['gift_stars']} ⭐</b> (~{r['receive_stars']} ⭐)\n• Списано: <b>{r['cost_rp']} RP</b> (комиссия {r['fee_rp']} RP)", kb)
+    rows_kb.append([InlineKeyboardButton(text="◀️ Админ-панель", callback_data="admin_panel")])
+    await safe_edit(
+        cb.message,
+        f"📤 <b>Вывод (1 из {total}) • <code>{r['request_id']}</code></b>\n\n"
+        f"• Клиент: <a href=\"tg://user?id={r['user_tg_id']}\">{fname}</a> ({uname}, <code>{r['user_tg_id']}</code>)\n"
+        f"• Отправить подарок: <b>{r['gift_stars']} ⭐</b> (~{r['receive_stars']} ⭐ при обмене)\n"
+        f"• Списано: <b>{r['cost_rp']} RP</b> (комиссия {r['fee_rp']} RP)\n"
+        f"• Примечание: <i>{esc(r['target_note'] or '—')}</i>",
+        InlineKeyboardMarkup(inline_keyboard=rows_kb),
+    )
     await cb.answer()
 
 
 @dp.callback_query(F.data.startswith(("topup_ok:", "topup_no:")))
 async def cb_review_topup(cb: types.CallbackQuery) -> None:
     if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True)
         return
     act, rid = cb.data.split(":", 1)
     ok = act == "topup_ok"
@@ -993,8 +1067,15 @@ async def cb_review_topup(cb: types.CallbackQuery) -> None:
         r = conn.execute("SELECT * FROM topup_requests WHERE request_id = ?", (rid,)).fetchone()
         if ok:
             conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (r["amount_rp"], r["user_tg_id"]))
+        new_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (r["user_tg_id"],)).fetchone()["wallet_balance"]
+
     asyncio.create_task(sync_db_to_telegram(f"Пополнение {rid}: {st}"))
-    await safe_edit(cb.message, f"{'✅ ОДОБРЕНО' if ok else '❌ ОТКЛОНЕНО'} • <code>{rid}</code> ({r['amount_rp']} RP)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
+    asyncio.create_task(rt_hub.push(r["user_tg_id"], {
+        "type": "sync", "wallet_balance": new_bal,
+        "notify": f"+{r['amount_rp']} RP зачислено! Успешно" if ok else f"Заявка {rid} отклонена",
+        "emotion": "happy" if ok else "sad",
+    }))
+    await safe_edit(cb.message, f"{'✅ ОДОБРЕНО' if ok else '❌ ОТКЛОНЕНО'} • <code>{rid}</code> ({r['amount_rp']} RP)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📥 Следующая заявка", callback_data="admin_topups")], [InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
     await cb.answer("Готово")
     try:
         msg = f"✅ <b>Пополнение одобрено!</b> Зачислено <b>+{r['amount_rp']} RP</b>." if ok else f"❌ Заявка <code>{rid}</code> на {r['amount_rp']} RP отклонена."
@@ -1006,6 +1087,7 @@ async def cb_review_topup(cb: types.CallbackQuery) -> None:
 @dp.callback_query(F.data.startswith(("wdr_ok:", "wdr_no:")))
 async def cb_review_withdraw(cb: types.CallbackQuery) -> None:
     if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True)
         return
     act, rid = cb.data.split(":", 1)
     ok = act == "wdr_ok"
@@ -1016,16 +1098,22 @@ async def cb_review_withdraw(cb: types.CallbackQuery) -> None:
             return
         r = conn.execute("SELECT * FROM withdraw_requests WHERE request_id = ?", (rid,)).fetchone()
         if not ok:
-            # При отклонении возвращаем замороженные RP на кошелёк клиента
             conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (r["cost_rp"], r["user_tg_id"]))
+        new_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (r["user_tg_id"],)).fetchone()["wallet_balance"]
+
     asyncio.create_task(sync_db_to_telegram(f"Вывод {rid}: {st}"))
-    await safe_edit(cb.message, f"{'✅ ВЫВОД ОДОБРЕН' if ok else '❌ ВЫВОД ОТКЛОНЁН (RP возвращены)'} • <code>{rid}</code> ({r['gift_stars']} ⭐)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
+    asyncio.create_task(rt_hub.push(r["user_tg_id"], {
+        "type": "sync", "wallet_balance": new_bal,
+        "notify": f"Готово! Подарок {r['gift_stars']} ⭐ отправлен" if ok else f"Вывод отклонён (+{r['cost_rp']} RP возврат)",
+        "emotion": "happy" if ok else "sad",
+    }))
+    await safe_edit(cb.message, f"{'✅ ВЫВОД ОДОБРЕН' if ok else '❌ ВЫВОД ОТКЛОНЁН (RP возвращены)'} • <code>{rid}</code> ({r['gift_stars']} ⭐)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📤 Следующая заявка", callback_data="admin_withdraws")], [InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
     await cb.answer("Готово")
     try:
         if ok:
-            await bot.send_message(r["user_tg_id"], f"✅ <b>Готово! Звёзды вам отправлены.</b>\n\nПодарок номиналом <b>{r['gift_stars']} ⭐</b> (~{r['receive_stars']} ⭐ при обмене) отправлен на ваш аккаунт (заявка <code>{rid}</code>).", parse_mode="HTML")
+            await bot.send_message(r["user_tg_id"], f"✅ <b>Готово! Звёзды вам отправлены.</b>\n\nПодарок <b>{r['gift_stars']} ⭐</b> (~{r['receive_stars']} ⭐ при обмене) отправлен на ваш аккаунт (заявка <code>{rid}</code>).", parse_mode="HTML")
         else:
-            await bot.send_message(r["user_tg_id"], f"❌ <b>Заявка на вывод <code>{rid}</code> отклонена.</b>\nСумма <b>+{r['cost_rp']} RP</b> возвращена на ваш кошелёк.", parse_mode="HTML")
+            await bot.send_message(r["user_tg_id"], f"❌ <b>Заявка на вывод <code>{rid}</code> отклонена.</b>\n<b>+{r['cost_rp']} RP</b> возвращены на ваш кошелёк.", parse_mode="HTML")
     except Exception:
         pass
 
@@ -1089,6 +1177,16 @@ class TransferReq(BaseModel):
     comment: str = Field(default="", max_length=120)
 
 
+class SupportMsg(BaseModel):
+    role: str
+    content: str
+
+
+class SupportChatReq(BaseModel):
+    message: str = Field(..., min_length=1, max_length=1000)
+    history: List[SupportMsg] = Field(default_factory=list)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global BOT_USERNAME
@@ -1124,6 +1222,26 @@ async def serve_miniapp():
     return FileResponse("index.html")
 
 
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket, initData: str = Query(default="")):
+    try:
+        tg_user = verify_telegram_init_data(initData)
+        uid = int(tg_user["id"])
+    except Exception:
+        await ws.close(code=1008)
+        return
+    await rt_hub.connect(uid, ws)
+    try:
+        while True:
+            msg = await ws.receive_text()
+            if msg == "ping":
+                await ws.send_text("pong")
+    except WebSocketDisconnect:
+        rt_hub.disconnect(uid, ws)
+    except Exception:
+        rt_hub.disconnect(uid, ws)
+
+
 @app.get("/api/v1/me")
 async def api_me(x_telegram_init_data: str = Header(default="")):
     tg_user = verify_telegram_init_data(x_telegram_init_data)
@@ -1139,12 +1257,58 @@ async def api_me(x_telegram_init_data: str = Header(default="")):
 
     tiers = [{"gift_stars": g, "cost_rp": calc_withdraw_cost(g)[0], "fee_rp": calc_withdraw_cost(g)[1], "receive_stars": calc_withdraw_cost(g)[2]} for g in GIFT_TIERS]
     return {
-        "user": u, "owner_username": OWNER_DISPLAY, "owner_url": OWNER_URL,
+        "user": u, "owner_username": OWNER_DISPLAY, "owner_url": OWNER_URL, "bot_username": BOT_USERNAME,
         "commission_rate": COMMISSION_RATE, "withdraw_fee_rate": WITHDRAW_FEE_RATE,
         "max_topup_stars": MAX_TOPUP_STARS, "gift_tiers": tiers,
         "projects": projects, "topups": topups, "withdrawals": withdrawals,
         "history": sorted(o_hist + t_hist, key=lambda x: x["ts"] or "", reverse=True)[:10],
     }
+
+
+@app.post("/api/v1/support/chat")
+async def api_support_chat(req: SupportChatReq, x_telegram_init_data: str = Header(default="")):
+    uid, bal = 0, 0
+    if x_telegram_init_data:
+        try:
+            u = verify_telegram_init_data(x_telegram_init_data)
+            uid = int(u["id"])
+            bal = get_wallet_balance(uid)
+        except Exception:
+            pass
+
+    if not GROQ_API_KEY:
+        return {"reply": f"Я робот поддержки RoboPay! Чтобы включить мой ИИ-интеллект, добавьте GROQ_API_KEY в переменные Railway. По срочным вопросам можно написать владельцу {OWNER_DISPLAY}."}
+
+    system_prompt = (
+        f"Ты — дружелюбный, остроумный и лаконичный робот техподдержки платёжного сервиса RoboPay в Telegram. "
+        f"Отвечай по-русски, коротко и понятно (2-4 предложения, удобно для озвучивания голосом, без лишнего markdown). "
+        f"Факты о RoboPay: внутренняя валюта RP (1 Telegram Star = 1 RP). Пополнение — отправка подарка до {MAX_TOPUP_STARS} ⭐ владельцу {OWNER_DISPLAY} с последующим одобрением заявки. "
+        f"Вывод — заявка на подарок 15, 25, 50 или 100 ⭐ с комиссией {int(WITHDRAW_FEE_RATE * 100)}%, одобряется владельцем. "
+        f"Переводы по ID/QR и оплата счетов с комиссией {int(COMMISSION_RATE * 100)}%. "
+        f"Разработчики могут подключить бота через REST API (раздел Мои проекты в боте). "
+        f"Текущий пользователь: ID {uid or 'гость'}, баланс {bal} RP."
+    )
+    messages = [{"role": "system", "content": system_prompt}]
+    for m in req.history[-8:]:
+        if m.role in ("user", "assistant"):
+            messages.append({"role": m.role, "content": m.content[:600]})
+    messages.append({"role": "user", "content": req.message})
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json={"model": GROQ_MODEL, "messages": messages, "temperature": 0.6, "max_tokens": 320},
+            )
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"[Groq Error] {data}")
+                return {"reply": f"Мои нейронные цепи сейчас перегружены. Попробуйте через пару секунд или напишите {OWNER_DISPLAY}."}
+            return {"reply": data["choices"][0]["message"]["content"].strip()}
+    except Exception as e:
+        print(f"[Groq Exception] {e}")
+        return {"reply": f"Связь с сервером ИИ прервалась. Попробуйте повторить вопрос или обратитесь к {OWNER_DISPLAY}."}
 
 
 @app.post("/api/v1/topup")
@@ -1178,13 +1342,16 @@ async def api_transfer(req: TransferReq, x_telegram_init_data: str = Header(defa
             raise HTTPException(status_code=400, detail="Недостаточно средств")
         conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (net_rp, req.to_tg_id))
         conn.execute("INSERT INTO transfers VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (tid, from_id, req.to_tg_id, req.amount, fee_rp, net_rp, req.comment, utc_now()))
-        new_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (from_id,)).fetchone()["wallet_balance"]
+        from_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (from_id,)).fetchone()["wallet_balance"]
+        to_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (req.to_tg_id,)).fetchone()["wallet_balance"]
+
     asyncio.create_task(sync_db_to_telegram(f"Перевод {tid} ({req.amount} RP)"))
+    asyncio.create_task(rt_hub.push(req.to_tg_id, {"type": "sync", "wallet_balance": to_bal, "notify": f"+{net_rp} RP перевод от {from_id}", "emotion": "happy"}))
     try:
         await bot.send_message(req.to_tg_id, f"💸 <b>Входящий перевод</b>\n• Зачислено: <b>+{net_rp} RP</b> (комиссия {fee_rp} RP)\n• От: <code>{from_id}</code>", parse_mode="HTML")
     except Exception:
         pass
-    return {"transfer_id": tid, "net_rp": net_rp, "fee_rp": fee_rp, "wallet_balance": new_bal}
+    return {"transfer_id": tid, "net_rp": net_rp, "fee_rp": fee_rp, "wallet_balance": from_bal}
 
 
 @app.post("/api/v1/webapp/invoices")
@@ -1234,11 +1401,11 @@ async def api_pay_order(order_id: str, x_telegram_init_data: str = Header(defaul
         if not o:
             raise HTTPException(status_code=404, detail="Счёт не найден")
         if o["status"] == "paid":
-            raise HTTPException(status_code=409, detail="Уже оплачен")
+            raise HTTPException(status_code=409, detail="Счёт уже оплачен")
         if conn.execute("UPDATE users SET wallet_balance = wallet_balance - ? WHERE tg_id = ? AND wallet_balance >= ?", (o["amount_rp"], pid, o["amount_rp"])).rowcount == 0:
-            raise HTTPException(status_code=402, detail="Недостаточно средств")
+            raise HTTPException(status_code=402, detail="Недостаточно средств на кошельке")
         if conn.execute("UPDATE orders SET status = 'paid', payer_tg_id = ?, paid_at = ? WHERE order_id = ? AND status = 'pending'", (pid, now, order_id)).rowcount == 0:
-            raise HTTPException(status_code=409, detail="Уже оплачен")
+            raise HTTPException(status_code=409, detail="Счёт уже оплачен")
         conn.execute("UPDATE merchants SET balance_rp = balance_rp + ? WHERE merchant_id = ?", (o["net_rp"], o["merchant_id"]))
         upd = dict(conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone())
         mrc = dict(conn.execute("SELECT * FROM merchants WHERE merchant_id = ?", (o["merchant_id"],)).fetchone())
