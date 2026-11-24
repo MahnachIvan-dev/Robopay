@@ -1351,6 +1351,47 @@
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
 
+    let selectedServiceId = null, lastServiceQrLink = "";
+    async function loadMerchantServices() {
+      const box=document.getElementById("serviceList"); if(!box) return;
+      try {
+        const data=await api("/api/v1/webapp/services");
+        box.innerHTML="";
+        if(!data.services.length){box.textContent="Пока нет сохранённых услуг.";return;}
+        data.services.forEach(s=>{
+          const item=document.createElement("div"); item.className="tx-item";
+          const left=document.createElement("div");
+          const title=document.createElement("div"); title.style.fontWeight="700"; title.textContent=s.title;
+          const detail=document.createElement("div"); detail.className="mono"; detail.textContent=s.amount_rp+" RP • "+(s.qr_active ? (s.uses_count+"/"+s.max_uses+" оплат") : "QR не активен");
+          left.append(title,detail); item.append(left);
+          const btn=document.createElement("button"); btn.className="btn btn-secondary btn-sm"; btn.textContent="Новый QR";
+          btn.addEventListener("click",()=>{selectedServiceId=s.service_id;document.getElementById("serviceQrControls").style.display="block";document.getElementById("svcTitle").value=s.title;document.getElementById("svcAmount").value=s.amount_rp;document.getElementById("svcDesc").value=s.description||"";document.getElementById("serviceQrResult").style.display="none";document.getElementById("serviceQrControls").scrollIntoView({behavior:"smooth",block:"center"});});
+          item.append(btn); box.append(item);
+        });
+      } catch(err){box.textContent="Не удалось загрузить услуги: "+err.message;}
+    }
+    document.getElementById("saveServiceBtn").addEventListener("click",async e=>{
+      const merchant_id=document.getElementById("svcProj").value, title=document.getElementById("svcTitle").value.trim(), amount=parseInt(document.getElementById("svcAmount").value,10), description=document.getElementById("svcDesc").value.trim();
+      if(!merchant_id||!title||!amount){showRtBanner("Укажите проект, название и цену услуги","sadDown");return;}
+      e.currentTarget.disabled=true;
+      try{
+        const s=await api("/api/v1/webapp/services",{method:"POST",body:JSON.stringify({merchant_id,title,amount,description})});
+        selectedServiceId=s.service_id; document.getElementById("serviceQrControls").style.display="block"; showRtBanner("Услуга сохранена в проекте","glee"); await loadMerchantServices();
+      }catch(err){showRtBanner(err.message,"sadDown");}finally{e.currentTarget.disabled=false;}
+    });
+    document.getElementById("issueServiceQrBtn").addEventListener("click",async e=>{
+      if(!selectedServiceId){showRtBanner("Сначала сохраните или выберите услугу","sadDown");return;}
+      const max_uses=parseInt(document.getElementById("svcMaxUses").value,10), expires_hours=parseInt(document.getElementById("svcExpiry").value,10);
+      if(!max_uses||max_uses<1||!expires_hours||expires_hours<1){showRtBanner("Проверьте лимит и срок QR","sadDown");return;}
+      e.currentTarget.disabled=true;
+      try{
+        const q=await api("/api/v1/webapp/services/"+encodeURIComponent(selectedServiceId)+"/qr",{method:"POST",body:JSON.stringify({max_uses,expires_hours})});
+        lastServiceQrLink=q.qr_payload; makeQr("serviceQrBox",q.qr_payload);
+        document.getElementById("serviceQrInfo").textContent="0 / "+q.max_uses+" оплат • действует до "+new Date(q.expires_at).toLocaleString("ru-RU");
+        document.getElementById("serviceQrResult").style.display="block"; showRtBanner("Многоразовый QR выпущен","glee"); await loadMerchantServices();
+      }catch(err){showRtBanner(err.message,"sadDown");}finally{e.currentTarget.disabled=false;}
+    });
+    document.getElementById("copyServiceQrBtn").addEventListener("click",async()=>{if(!lastServiceQrLink)return;try{await navigator.clipboard.writeText(lastServiceQrLink);showRtBanner("Ссылка на QR скопирована","happy");}catch{showRtBanner("Не удалось скопировать ссылку","sadDown");}});
     document.getElementById("createInvBtn").addEventListener("click", async e => {
       const merchant_id = document.getElementById("invProj").value, title = document.getElementById("invTitle").value.trim(), amount = parseInt(document.getElementById("invAmt").value, 10);
       if (!merchant_id || !title || !amount) { showRtBanner("Заполните все поля", "sadDown"); return; }
@@ -1384,6 +1425,9 @@
         document.getElementById("noProjNote").style.display = hasP ? "none" : "block";
         document.getElementById("invBox").style.display = hasP ? "block" : "none";
         if (hasP) document.getElementById("invProj").innerHTML = d.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
+        document.getElementById("svcProj").innerHTML = d.projects.map(p => `<option value="${p.merchant_id}">${p.title}</option>`).join("");
+        document.getElementById("saveServiceBtn").disabled = !hasP;
+        loadMerchantServices();
 
         const stMap = { pending: ["На проверке", "b-pending"], approved: ["Одобрено", "b-approved"], rejected: ["Отклонено", "b-rejected"] };
         const reqs = [
