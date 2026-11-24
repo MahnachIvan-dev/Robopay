@@ -354,4 +354,1051 @@
         <stop offset="0%" stop-color="#38BDF8"/><stop offset="100%" stop-color="#0284C7"/>
       </linearGradient>
       <symbol id="stk-star" viewBox="0 0 24 24">
-        <path fill="url(#rpStarGrad)" d="M12 1.8l2.
+        <path fill="url(#rpStarGrad)" d="M12 1.8l2.85 6.15 6.65.82-4.9 4.58 1.28 6.58L12 16.65l-5.88 3.28 1.28-6.58-4.9-4.58 6.65-.82z"/>
+        <path fill="rgba(255,255,255,0.45)" d="M12 3.2l1.6 4.2 3.8.5-2.8 2.6-2.6-7.3z"/>
+      </symbol>
+      <symbol id="stk-gift" viewBox="0 0 24 24">
+        <rect x="3" y="10" width="18" height="11" rx="2.6" fill="url(#rpGiftBox)"/>
+        <rect x="2" y="7" width="20" height="4.2" rx="1.6" fill="#0EA5E9"/>
+        <rect x="10.4" y="7" width="3.2" height="14" fill="#FDE047"/>
+        <path d="M12 7 C9.8 7 7 5.8 7 4 C7 2.6 8.3 2 9.4 2.5 C10.8 3.1 11.6 5.2 12 7 Z" fill="#F59E0B"/>
+        <path d="M12 7 C14.2 7 17 5.8 17 4 C17 2.6 15.7 2 14.6 2.5 C13.2 3.1 12.4 5.2 12 7 Z" fill="#FBBF24"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ЗАСТАВКА -->
+  <div class="splash" id="splash">
+    <canvas class="px-canvas" id="splashCanvas" width="224" height="112"></canvas>
+    <div class="splash-title" id="splashTitle">RoboPay</div>
+  </div>
+
+  <!-- REAL-TIME УВЕДОМЛЕНИЕ СВЕРХУ С ПИКСЕЛЬНЫМИ ГЛАЗАМИ (2 СЕК) -->
+  <div class="rt-banner" id="rtBanner">
+    <canvas class="px-canvas" id="rtCanvas" width="48" height="24"></canvas>
+    <span class="rt-text" id="rtText">Успешно!</span>
+  </div>
+
+  <!-- ЭКРАН 1: ГЛАВНАЯ (2D ПИКСЕЛЬНЫЕ ГЛАЗА НА ВЕСЬ ЭКРАН) -->
+  <section class="screen home-screen active" id="screenHome">
+    <div class="home-eyes-wrap" id="homeEyesBox">
+      <canvas class="px-canvas" id="homeCanvas" width="336" height="168"></canvas>
+      <div class="home-emotion-hint" id="homeHint">Нажми на глаза или отсканируй QR</div>
+    </div>
+
+    <div class="home-controls">
+      <button class="glass-pill-btn qr-scan-main" id="homeScanBtn">
+        <div class="qr-icon-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        </div>
+        <div>
+          <div class="btn-txt-title">Сканировать QR</div>
+          <div class="btn-txt-sub">Оплата и переводы</div>
+        </div>
+      </button>
+      <button class="glass-pill-btn" id="homeMenuBtn" style="padding:14px 20px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/></svg>
+        <span style="font-size:14px;font-weight:700;">Меню</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 2: ТЕНЕВОЙ 3D-КРУГ ОПЛАТЫ -->
+  <section class="screen pay-screen" id="screenPay">
+    <div class="energy-layer" id="energyLayer"></div>
+
+    <div class="pay-top-eyes" id="payTopEyes">
+      <canvas class="px-canvas" id="payCanvas" width="168" height="84"></canvas>
+    </div>
+
+    <div class="orb-stage" id="orbStage">
+      <div class="orb-floor-shadow"></div>
+      <div class="orb-glow" id="orbGlow"></div>
+      <div class="orb-glow-2" id="orbGlow2"></div>
+      <div class="orb-circle" id="orbCircle">
+        <div id="orbContent">
+          <div class="orb-badge" id="payBadge">СЧЁТ</div>
+          <div class="orb-title" id="payTitle">Услуга</div>
+          <div id="payFixedAmt" class="tabular"><span class="orb-amount" id="payAmtNum">50</span><span class="orb-unit">RP</span></div>
+          <div id="payCustomAmtWrap" style="display:none;align-items:baseline;justify-content:center;gap:4px;">
+            <input class="orb-input tabular" id="payCustomAmt" type="number" min="1" placeholder="50"/>
+            <span class="orb-unit">RP</span>
+          </div>
+          <div class="orb-sub tabular" id="payBalSub">Баланс: 0 RP</div>
+        </div>
+
+        <div class="orb-result-icon" id="orbResult">
+          <svg id="orbOkSvg" style="display:none;" width="88" height="88" viewBox="0 0 88 88" fill="none">
+            <path id="orbOkPath" d="M20 46 L37 63 L69 26" stroke="#10b981" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="94" stroke-dashoffset="94"/>
+          </svg>
+          <svg id="orbErrSvg" style="display:none;" width="88" height="88" viewBox="0 0 88 88" fill="none">
+            <path id="orbErrP1" d="M24 24 L64 64" stroke="#ef4444" stroke-width="8" stroke-linecap="round" stroke-dasharray="64" stroke-dashoffset="64"/>
+            <path id="orbErrP2" d="M64 24 L24 64" stroke="#ef4444" stroke-width="8" stroke-linecap="round" stroke-dasharray="64" stroke-dashoffset="64"/>
+          </svg>
+          <div style="font-size:16px;font-weight:800;" id="orbResTitle">Оплачено!</div>
+          <div style="font-size:12.5px;color:var(--muted);" id="orbResSub">Сигнал отправлен</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pay-footer" id="payFooter">
+      <button class="btn btn-primary" id="payConfirmBtn" style="padding:15px;font-size:15px;border-radius:18px;">Оплатить</button>
+      <button class="btn btn-ghost" id="payCancelBtn">Отменить</button>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 3: МЕНЮ -->
+  <section class="screen menu-screen" id="screenMenu">
+    <header class="topbar">
+      <div class="brand">
+        <canvas class="px-canvas" id="brandCanvas" width="44" height="22"></canvas>
+        <span>RoboPay</span>
+      </div>
+      <div class="top-actions">
+        <button class="round-btn" id="colorCycleBtn" title="Сменить цвет глаз"><span class="color-dot"></span></button>
+        <button class="round-btn" id="soundBtn" title="Звук">
+          <svg id="sndOn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+          <svg id="sndOff" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+        <div class="bal-chip tabular">
+          <svg class="stk stk-sm"><use href="#stk-star"/></svg>
+          <span id="menuBalChip">0</span> RP
+        </div>
+      </div>
+    </header>
+
+    <div class="subview active" id="subWallet">
+      <div class="card">
+        <div style="font-size:13px;color:var(--muted);font-weight:500;">Баланс RoboPay</div>
+        <div class="hero-bal tabular"><span id="walletBalBig">0</span> <span style="font-size:20px;color:var(--eye-deep);">RP</span></div>
+        <div class="row-3">
+          <button class="btn btn-primary btn-sm" id="openTopupBtn">Пополнить</button>
+          <button class="btn btn-secondary btn-sm" id="openWithdrawBtn">
+            <svg class="stk stk-sm"><use href="#stk-gift"/></svg>Вывод
+          </button>
+          <button class="btn btn-secondary btn-sm" id="openTransferBtn">Перевести</button>
+        </div>
+      </div>
+
+      <div class="sec-title">Заявки на пополнение и вывод</div>
+      <div class="tx-list" id="reqList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Заявок пока нет</div></div>
+
+      <div class="sec-title">История операций</div>
+      <div class="tx-list" id="histList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Операций пока нет</div></div>
+    </div>
+
+    <div class="subview" id="subQr">
+      <div class="card">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Мой QR для приёма RP</div>
+        <div style="font-size:13px;color:var(--muted);">Покажите или отправьте код — перевод откроется в 3D-круге.</div>
+        <div class="qr-wrap">
+          <div id="myQrBox"></div>
+          <div class="mono" style="margin-top:10px;" id="myIdLbl">ID: —</div>
+        </div>
+        <div class="row-2">
+          <button class="btn btn-primary btn-sm" id="shareMyQrBtn">Поделиться QR</button>
+          <button class="btn btn-secondary btn-sm" id="copyIdBtn">Скопировать ID</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Создать QR-счёт проекта</div>
+        <div id="noProjNote" style="display:none;font-size:13px;color:var(--muted);">Создайте проект в боте («Мои проекты»), чтобы выставлять счета.</div>
+        <div id="invBox">
+          <div class="field"><label>Проект</label><select class="select" id="invProj"></select></div>
+          <div class="field"><label>Услуга</label><input class="input" id="invTitle" placeholder="VIP-доступ" maxlength="48"/></div>
+          <div class="field"><label>Сумма (RP)</label><input class="input tabular" id="invAmt" type="number" min="1" placeholder="50"/></div>
+          <button class="btn btn-primary" id="createInvBtn">Сгенерировать QR-счёт</button>
+          <div id="invRes" style="display:none;margin-top:14px;">
+            <div class="qr-wrap"><div id="invQrBox"></div></div>
+            <div class="row-2">
+              <button class="btn btn-primary btn-sm" id="shareInvQrBtn">Поделиться QR</button>
+              <button class="btn btn-secondary btn-sm" id="copyInvBtn">Ссылка</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="apple-dock-wrap">
+      <nav class="apple-dock">
+        <button class="dock-btn" id="dockHome">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="6" width="7" height="12" rx="3"/><rect x="14" y="6" width="7" height="12" rx="3"/></svg>
+          Глаза
+        </button>
+        <button class="dock-btn active" data-sub="Wallet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+          Кошелёк
+        </button>
+        <button class="dock-btn" data-sub="Qr">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v7h-6"/></svg>
+          QR
+        </button>
+        <button class="dock-btn" id="dockSupport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Помощь
+        </button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ЭКРАН 4: ТЕХПОДДЕРЖКА (2D ПИКСЕЛЬНЫЕ ГЛАЗА + ПИКСЕЛЬНЫЙ РОТ + GROQ) -->
+  <section class="screen support-screen" id="screenSupport">
+    <div class="sup-top">
+      <button class="round-btn" id="supBackBtn" title="Назад">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:700;">Техподдержка RoboPay AI</span>
+      <button class="round-btn" id="supModeToggle" title="Чат / Голос">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </button>
+    </div>
+
+    <div class="sup-face-stage" id="supFaceStage">
+      <canvas class="px-canvas" id="supCanvas" width="280" height="210"></canvas>
+      <div class="sup-status" id="supStatus">Нажми на экран и задай вопрос голосом</div>
+    </div>
+
+    <div class="sup-voice-bar" id="supVoiceBar">
+      <button class="glass-pill-btn" id="openTextChatBtn" style="padding:12px 22px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span style="font-size:14px;font-weight:700;">Написать текстом</span>
+      </button>
+    </div>
+
+    <div class="sup-chat-wrap" id="supChatWrap">
+      <div class="sup-messages" id="supMessages">
+        <div class="msg-bubble msg-bot">Привет! Я робот поддержки RoboPay. Спроси про пополнение, вывод подарком, QR или подключение API.</div>
+      </div>
+      <div class="sup-input-bar">
+        <input class="input" id="supTextInput" placeholder="Напишите вопрос..." style="border-radius:999px;padding:11px 16px;"/>
+        <button class="btn btn-primary" id="supSendBtn" style="width:auto;padding:0 18px;border-radius:999px;">↑</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- МОДАЛКИ: ПОПОЛНЕНИЕ, ВЫВОД, ПЕРЕВОД -->
+  <div class="modal-backdrop" id="topupModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;">
+          <svg class="stk stk-md"><use href="#stk-gift"/></svg>Пополнение подарком
+        </div>
+        <button class="modal-close" data-close="topupModal">&times;</button>
+      </div>
+      <div class="owner-box">
+        <div style="font-size:12.5px;color:#78350f;line-height:1.4;">
+          1. Отправьте Telegram-подарок владельцу по ссылке (до <strong>100 <svg class="stk stk-sm"><use href="#stk-star"/></svg></strong>, курс 1:1):
+        </div>
+        <a href="#" class="owner-link" id="ownerGiftLink">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#0284c7;text-decoration:underline;" id="ownerNickTxt">@owner</div>
+            <div style="font-size:11px;color:var(--muted);" id="ownerUrlTxt">https://t.me/owner</div>
+          </div>
+          <svg class="stk stk-lg"><use href="#stk-gift"/></svg>
+        </a>
+      </div>
+      <div class="chips" id="topupChips">
+        <button class="chip" data-amt="15">15 <svg class="stk stk-sm"><use href="#stk-star"/></svg></button>
+        <button class="chip" data-amt="25">25 <svg class="stk stk-sm"><use href="#stk-star"/></svg></button>
+        <button class="chip" data-amt="50">50 <svg class="stk stk-sm"><use href="#stk-star"/></svg></button>
+        <button class="chip" data-amt="100">100 <svg class="stk stk-sm"><use href="#stk-star"/></svg></button>
+      </div>
+      <div class="field"><input class="input tabular" id="topAmt" type="number" min="1" max="100" placeholder="Сумма от 1 до 100"/></div>
+      <div class="field"><input class="input" id="topComm" placeholder="Комментарий (какой подарок отправили)" maxlength="200"/></div>
+      <button class="btn btn-primary" id="submitTopupBtn">Я отправил подарок — подать заявку</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="withdrawModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;">
+          <svg class="stk stk-md"><use href="#stk-star"/></svg>Вывод в Stars
+        </div>
+        <button class="modal-close" data-close="withdrawModal">&times;</button>
+      </div>
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">Владелец отправит подарок после одобрения (комиссия <strong id="wdrFeePct">20%</strong>).</div>
+      <div class="tier-grid" id="tierGrid"></div>
+      <div class="card-soft tabular" id="wdrSummary" style="font-size:12.5px;line-height:1.45;">Выберите номинал подарка</div>
+      <div class="field"><input class="input" id="wdrNote" placeholder="Комментарий (необязательно)" maxlength="120"/></div>
+      <button class="btn btn-primary" id="submitWdrBtn" disabled>Отправить заявку на вывод</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="transferModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div style="font-size:18px;font-weight:700;">Перевод RP</div>
+        <button class="modal-close" data-close="transferModal">&times;</button>
+      </div>
+      <div class="field"><label>Telegram ID получателя</label><input class="input tabular" id="trTo" type="number" placeholder="123456789"/></div>
+      <div class="field"><label>Сумма списания (RP)</label><input class="input tabular" id="trAmt" type="number" min="1" placeholder="50"/></div>
+      <div class="card-soft tabular" id="trPreview" style="font-size:12.5px;color:var(--muted);">Комиссия: 5%</div>
+      <div class="field"><input class="input" id="trComm" placeholder="Комментарий" maxlength="120"/></div>
+      <button class="btn btn-primary" id="submitTrBtn">Перевести</button>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#ffffff"); tg.setBackgroundColor("#ffffff"); }
+
+    // --- 2D ПИКСЕЛЬНЫЙ ДВИЖОК ГЛАЗ COZMO (ЧИСТЫЙ 2D, БЕЗ ТЕНЕЙ И БЕЛЫХ ШТОРОК) ---
+    // Каждая эмоция задаёт геометрию левого (L) и правого (R) глаза напрямую в пиксельной сетке 56x28.
+    const EMO_PRESETS = {
+      neutral:     { L:{w:15,h:13,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:13,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
+      blinkHigh:   { L:{w:17,h:1.6,y:-5,tL:0,tR:0,bL:0,bR:0,a:0}, R:{w:17,h:1.6,y:-5,tL:0,tR:0,bL:0,bR:0,a:0} },
+      blinkLow:    { L:{w:17,h:1.6,y:5,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:17,h:1.6,y:5,tL:0,tR:0,bL:0,bR:0,a:0} },
+      happy:       { L:{w:16,h:8,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2}, R:{w:16,h:8,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2} },
+      glee:        { L:{w:16,h:6.5,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2},R:{w:16,h:6.5,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2} },
+      sadDown:     { L:{w:15,h:9,y:4,tL:5.5,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:9,y:4,tL:0,tR:5.5,bL:0,bR:0,a:0} },
+      sadUp:       { L:{w:15,h:10,y:-2,tL:4.5,tR:0,bL:0,bR:0,a:0},R:{w:15,h:10,y:-2,tL:0,tR:4.5,bL:0,bR:0,a:0} },
+      worried:     { L:{w:15,h:11,y:0,tL:4,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:11,y:0,tL:0,tR:4,bL:0,bR:0,a:0} },
+      focused:     { L:{w:16,h:7.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:16,h:7.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0} },
+      annoyed:     { L:{w:15,h:5.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:4.2,y:0.5,tL:0,tR:0,bL:0,bR:0,a:0} },
+      surprised:   { L:{w:17,h:16,y:-1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:17,h:16,y:-1,tL:0,tR:0,bL:0,bR:0,a:0} },
+      skeptic:     { L:{w:15,h:12,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:7,y:2,tL:2.5,tR:0,bL:0,bR:0,a:0} },
+      bored:       { L:{w:15,h:6.5,y:3,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:6.5,y:3,tL:0,tR:0,bL:0,bR:0,a:0} },
+      sleepy:      { L:{w:15,h:7.5,y:1,tL:1.5,tR:0,bL:0,bR:0,a:0},R:{w:15,h:3,y:2,tL:0,tR:1.5,bL:0,bR:0,a:0} },
+      suspicious:  { L:{w:16,h:6,y:0,tL:0,tR:1.5,bL:0,bR:0,a:0},  R:{w:16,h:6,y:0,tL:1.5,tR:0,bL:0,bR:0,a:0} },
+      squint:      { L:{w:16,h:3.8,y:0,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:16,h:3.8,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
+      angry:       { L:{w:15,h:10,y:1,tL:0,tR:5.5,bL:0,bR:0,a:0}, R:{w:15,h:10,y:1,tL:5.5,tR:0,bL:0,bR:0,a:0} },
+      furious:     { L:{w:16,h:11,y:0,tL:0,tR:7.5,bL:0,bR:0,a:0}, R:{w:16,h:11,y:0,tL:7.5,tR:0,bL:0,bR:0,a:0} },
+      scared:      { L:{w:16,h:14,y:-2,tL:2.2,tR:0,bL:0,bR:0,a:0},R:{w:16,h:14,y:-2,tL:0,tR:2.2,bL:0,bR:0,a:0} },
+      awe:         { L:{w:18,h:17,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:18,h:17,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
+      wink:        { L:{w:16,h:8.5,y:-2,tL:0,tR:0,bL:0,bR:0,a:3}, R:{w:16,h:2,y:0,tL:0,tR:0,bL:0,bR:0,a:0} }
+    };
+
+    const THEMES = [
+      { name: "Cozmo Cyan", eye: "#00e5ff", deep: "#00acc1" },
+      { name: "Cobalt",     eye: "#2563eb", deep: "#1d4ed8" },
+      { name: "Emerald",    eye: "#10b981", deep: "#059669" },
+      { name: "Violet",     eye: "#8b5cf6", deep: "#7c3aed" },
+      { name: "Amber",      eye: "#f59e0b", deep: "#d97706" },
+      { name: "Rose",       eye: "#ec4899", deep: "#db2777" }
+    ];
+    let themeIdx = parseInt(localStorage.getItem("rp_theme") || "0", 10) % THEMES.length;
+    function applyTheme(i) {
+      themeIdx = i % THEMES.length;
+      localStorage.setItem("rp_theme", String(themeIdx));
+      const th = THEMES[themeIdx];
+      document.documentElement.style.setProperty("--eye", th.eye);
+      document.documentElement.style.setProperty("--eye-deep", th.deep);
+      drawStaticPixelEyes("brandCanvas", "neutral", 22, 11);
+      drawStaticPixelEyes("splashCanvas", "awe", 56, 28);
+    }
+
+    function insidePixelEye(px, py, cx, cy, e) {
+      const halfW = e.w / 2, halfH = e.h / 2;
+      const lx = px - cx, ly = py - cy;
+      if (Math.abs(lx) > halfW || Math.abs(ly) > halfH) return false;
+      // Скругление углов
+      const rad = Math.min(3.2, halfW * 0.45, halfH * 0.48);
+      const dx = Math.max(0, Math.abs(lx) - (halfW - rad));
+      const dy = Math.max(0, Math.abs(ly) - (halfH - rad));
+      if (dx * dx + dy * dy > rad * rad) return false;
+      // Верхний скос (для angry, sad, focused, skeptic...)
+      const u = (lx + halfW) / Math.max(0.01, e.w);
+      const topCut = e.tL * (1 - u) + e.tR * u;
+      if (ly < -halfH + topCut) return false;
+      // Нижний вырез дугой (для happy / glee — вырезает сами пиксели без шторок!)
+      if (e.a > 0.1) {
+        const archLift = e.a * (1 - Math.pow(lx / halfW, 2));
+        if (ly > halfH - archLift) return false;
+      }
+      return true;
+    }
+
+    function drawStaticPixelEyes(canvasId, emoName, gw, gh) {
+      const c = document.getElementById(canvasId); if (!c) return;
+      const ctx = c.getContext("2d");
+      const sx = c.width / gw, sy = c.height / gh;
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = THEMES[themeIdx].eye;
+      const em = EMO_PRESETS[emoName] || EMO_PRESETS.neutral;
+      const scale = gw / 56;
+      const scaleEye = o => ({ w: o.w*scale, h: o.h*scale, y: o.y*scale, tL: o.tL*scale, tR: o.tR*scale, a: o.a*scale });
+      const eL = scaleEye(em.L), eR = scaleEye(em.R);
+      const lcx = gw * 0.31, rcx = gw * 0.69, cy = gh * 0.5;
+      const gap = sx >= 3 ? 0.7 : 0.25;
+      for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+          if (insidePixelEye(x + 0.5, y + 0.5, lcx, cy + eL.y, eL) || insidePixelEye(x + 0.5, y + 0.5, rcx, cy + eR.y, eR)) {
+            ctx.fillRect(x * sx, y * sy, sx - gap, sy - gap);
+          }
+        }
+      }
+    }
+
+    class PixelFaceController {
+      constructor(canvasId, withMouth = false) {
+        this.c = document.getElementById(canvasId);
+        this.ctx = this.c.getContext("2d");
+        this.gw = 56;
+        this.gh = withMouth ? 42 : 28;
+        this.withMouth = withMouth;
+        this.cur = JSON.parse(JSON.stringify(EMO_PRESETS.neutral));
+        this.tgt = JSON.parse(JSON.stringify(EMO_PRESETS.neutral));
+        this.gx = 0; this.gy = 0; this.tgx = 0; this.tgy = 0;
+        this.talking = false;
+        this.talkBars = [2, 3, 4, 3, 2];
+      }
+      setEmotion(name) {
+        const p = EMO_PRESETS[name] || EMO_PRESETS.neutral;
+        this.tgt = JSON.parse(JSON.stringify(p));
+      }
+      look(dx, dy) { this.tgx = dx; this.tgy = dy; }
+      tick(time) {
+        const lerp = (a, b, k) => a + (b - a) * k;
+        ["L", "R"].forEach(s => {
+          for (const k in this.cur[s]) this.cur[s][k] = lerp(this.cur[s][k], this.tgt[s][k], 0.22);
+        });
+        this.gx = lerp(this.gx, this.tgx, 0.16);
+        this.gy = lerp(this.gy, this.tgy, 0.16);
+
+        const ctx = this.ctx, gw = this.gw, gh = this.gh;
+        const sx = this.c.width / gw, sy = this.c.height / gh;
+        ctx.clearRect(0, 0, this.c.width, this.c.height);
+        ctx.fillStyle = THEMES[themeIdx].eye;
+
+        const lcx = 17.5 + this.gx, rcx = 38.5 + this.gx;
+        const baseCy = this.withMouth ? 13.5 : 14;
+        const lcy = baseCy + this.cur.L.y + this.gy;
+        const rcy = baseCy + this.cur.R.y + this.gy;
+        const gap = sx >= 4 ? 0.9 : 0.6;
+
+        for (let y = 0; y < (this.withMouth ? 28 : gh); y++) {
+          for (let x = 0; x < gw; x++) {
+            if (insidePixelEye(x + 0.5, y + 0.5, lcx, lcy, this.cur.L) || insidePixelEye(x + 0.5, y + 0.5, rcx, rcy, this.cur.R)) {
+              ctx.fillRect(x * sx, y * sy, sx - gap, sy - gap);
+            }
+          }
+        }
+
+        // Пиксельный анимированный рот для страницы техподдержки
+        if (this.withMouth) {
+          const mCy = 34;
+          for (let b = 0; b < 5; b++) {
+            const targetH = this.talking
+              ? 2 + Math.abs(Math.sin(time * 0.015 + b * 1.4)) * (b === 2 ? 7 : 5)
+              : (b === 2 ? 2 : 1.5);
+            this.talkBars[b] = lerp(this.talkBars[b], targetH, 0.28);
+            const h = Math.max(1, Math.round(this.talkBars[b]));
+            const bx = 19 + b * 4;
+            const by = Math.round(mCy - h / 2);
+            for (let py = by; py < by + h; py++) {
+              for (let px = bx; px < bx + 3; px++) {
+                ctx.fillRect(px * sx, py * sy, sx - gap, sy - gap);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const homeFace = new PixelFaceController("homeCanvas", false);
+    const payFace  = new PixelFaceController("payCanvas", false);
+    const supFace  = new PixelFaceController("supCanvas", true);
+
+    (function renderLoop(t) {
+      if (document.getElementById("screenHome").classList.contains("active")) homeFace.tick(t);
+      if (document.getElementById("screenPay").classList.contains("active")) payFace.tick(t);
+      if (document.getElementById("screenSupport").classList.contains("active")) supFace.tick(t);
+      requestAnimationFrame(renderLoop);
+    })(0);
+
+    applyTheme(themeIdx);
+
+    // --- ЗВУКИ (WEB AUDIO API) ---
+    const Snd = (() => {
+      let ctx = null, on = localStorage.getItem("rp_snd") !== "off";
+      const ensure = () => {
+        if (!on) return null;
+        if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ctx = new AC(); }
+        if (ctx?.state === "suspended") ctx.resume().catch(() => {});
+        return ctx;
+      };
+      const t = (f, off, dur, type = "sine", vol = 0.065, slide = null) => {
+        const c = ensure(); if (!c) return;
+        const now = c.currentTime + off, o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, now);
+        if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
+        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(vol, now + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        o.connect(g); g.connect(c.destination); o.start(now); o.stop(now + dur + 0.02);
+      };
+      return {
+        on: () => on, unlock: ensure,
+        toggle() { on = !on; localStorage.setItem("rp_snd", on ? "on" : "off"); if (on) this.tap(); return on; },
+        tap: () => t(620, 0, 0.05, "sine", 0.04, 760),
+        happy: () => { t(523, 0, 0.11, "sine", 0.06); t(659, 0.07, 0.12, "sine", 0.06); t(880, 0.14, 0.22, "sine", 0.065); },
+        wink: () => t(480, 0, 0.11, "sine", 0.055, 820),
+        surprise: () => t(360, 0, 0.16, "triangle", 0.06, 860),
+        curious: () => { t(540, 0, 0.08, "sine", 0.05, 680); t(680, 0.09, 0.1, "sine", 0.05, 580); },
+        grumpy: () => t(280, 0, 0.16, "sawtooth", 0.03, 210),
+        energy: () => {
+          t(220, 0, 1.8, "sine", 0.05, 880);
+          t(330, 0.15, 1.5, "triangle", 0.035, 1320);
+          t(660, 0.6, 0.12, "sine", 0.05); t(880, 1.0, 0.12, "sine", 0.05); t(1100, 1.4, 0.16, "sine", 0.055);
+        },
+        ok: () => { t(659, 0, 0.15, "sine", 0.075); t(988, 0.08, 0.34, "sine", 0.085); t(1318, 0.14, 0.36, "triangle", 0.045); },
+        err: () => { t(250, 0, 0.14, "triangle", 0.07, 170); t(180, 0.14, 0.22, "triangle", 0.07, 130); }
+      };
+    })();
+    window.addEventListener("pointerdown", () => Snd.unlock(), { once: true });
+
+    const syncSnd = () => {
+      document.getElementById("sndOn").style.display = Snd.on() ? "block" : "none";
+      document.getElementById("sndOff").style.display = Snd.on() ? "none" : "block";
+    };
+    syncSnd();
+    document.getElementById("soundBtn").addEventListener("click", () => { Snd.toggle(); syncSnd(); });
+    document.getElementById("colorCycleBtn").addEventListener("click", () => {
+      applyTheme(themeIdx + 1); Snd.tap(); showRtBanner(`Цвет: ${THEMES[themeIdx].name}`, "happy");
+    });
+
+    // --- СОСТОЯНИЕ ---
+    const INIT_DATA = tg?.initData || "";
+    const st = {
+      user: null, ownerUrl: "https://t.me/owner", botUser: "", commRate: 0.05, wdrRate: 0.20,
+      tiers: [], selectedGift: null, payCtx: null, lastInvLink: "", lastQrObj: null, myQrObj: null,
+      bal: 0, reacting: false, supHistory: [], supTextMode: false
+    };
+
+    async function api(url, opts = {}) {
+      const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": INIT_DATA, ...(opts.headers || {}) } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Ошибка запроса");
+      return data;
+    }
+
+    let rtTimer = null;
+    function showRtBanner(text, emotion = "glee") {
+      const b = document.getElementById("rtBanner");
+      document.getElementById("rtText").textContent = text;
+      drawStaticPixelEyes("rtCanvas", emotion, 24, 12);
+      if (emotion === "sadDown" || emotion === "angry") Snd.err(); else Snd.ok();
+      clearTimeout(rtTimer);
+      gsap.killTweensOf(b);
+      gsap.to(b, { y: 0, duration: 0.36, ease: "back.out(1.6)" });
+      rtTimer = setTimeout(() => gsap.to(b, { y: -130, duration: 0.3, ease: "power2.in" }), 2100);
+    }
+
+    function setBalance(v) {
+      const o = { n: st.bal };
+      gsap.to(o, {
+        n: v, duration: 0.45, ease: "power2.out",
+        onUpdate: () => {
+          const r = Math.round(o.n);
+          document.getElementById("menuBalChip").textContent = r;
+          document.getElementById("walletBalBig").textContent = r;
+        },
+        onComplete: () => { st.bal = v; }
+      });
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      const el = document.getElementById(id);
+      el.classList.add("active");
+      gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.24 });
+    }
+    function switchSub(name) {
+      Snd.tap(); showScreen("screenMenu");
+      document.querySelectorAll(".subview").forEach(v => v.classList.remove("active"));
+      document.querySelectorAll(".dock-btn[data-sub]").forEach(b => b.classList.remove("active"));
+      document.getElementById(`sub${name}`).classList.add("active");
+      document.querySelector(`.dock-btn[data-sub="${name}"]`)?.classList.add("active");
+    }
+    document.getElementById("homeMenuBtn").addEventListener("click", () => switchSub("Wallet"));
+    document.getElementById("dockHome").addEventListener("click", () => { Snd.tap(); showScreen("screenHome"); });
+    document.getElementById("dockSupport").addEventListener("click", () => openSupportScreen());
+    document.querySelectorAll(".dock-btn[data-sub]").forEach(b => b.addEventListener("click", () => switchSub(b.dataset.sub)));
+
+    // --- ГЛАВНАЯ: СЛЕЖЕНИЕ, АВТО-ОГЛЯДЫВАНИЕ, МОРГАНИЕ И ВСЕ ЭМОЦИИ COZMO ---
+    let lastPointerTime = 0;
+    function trackHome(cx, cy) {
+      if (!document.getElementById("screenHome").classList.contains("active") || st.reacting) return;
+      lastPointerTime = Date.now();
+      const dx = Math.max(-1, Math.min(1, (cx - window.innerWidth / 2) / (window.innerWidth * 0.45)));
+      const dy = Math.max(-1, Math.min(1, (cy - window.innerHeight * 0.42) / (window.innerHeight * 0.45)));
+      homeFace.look(dx * 5.5, dy * 3.5);
+    }
+    window.addEventListener("pointermove", e => trackHome(e.clientX, e.clientY));
+    window.addEventListener("touchmove", e => { if (e.touches[0]) trackHome(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+
+    // Автоматические весёлые взгляды влево/вправо
+    setInterval(() => {
+      if (!document.getElementById("screenHome").classList.contains("active") || st.reacting) return;
+      if (Date.now() - lastPointerTime < 2200) return;
+      const dirs = [[-5.5, -1], [5.5, -1], [0, -2.5], [-4.5, 2], [4.5, 2], [0, 0]];
+      const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+      homeFace.look(dx, dy);
+      if (Math.random() < 0.45) {
+        homeFace.setEmotion(Math.random() < 0.65 ? "happy" : "glee");
+        setTimeout(() => { if (!st.reacting) homeFace.setEmotion("neutral"); }, 950);
+      }
+    }, 2200);
+
+    // Естественное моргание (blinkHigh / blinkLow)
+    (function blinkLoop() {
+      setTimeout(() => {
+        if (!st.reacting) {
+          const bType = Math.random() < 0.5 ? "blinkHigh" : "blinkLow";
+          homeFace.setEmotion(bType);
+          supFace.setEmotion(bType);
+          setTimeout(() => {
+            if (!st.reacting) {
+              homeFace.setEmotion("neutral");
+              if (!supFace.talking) supFace.setEmotion("neutral");
+            }
+          }, 130);
+        }
+        blinkLoop();
+      }, 2400 + Math.random() * 2800);
+    })();
+
+    const TAP_EMOTIONS = [
+      ["happy",     "Привет! Готов к оплате",       () => Snd.happy()],
+      ["glee",      "Отличное настроение!",         () => Snd.happy()],
+      ["wink",      "Подмигнул • Нажми QR внизу",   () => Snd.wink()],
+      ["surprised", "Ого! Щекотно!",                () => Snd.surprise()],
+      ["awe",       "Вау! Какие звёзды!",           () => Snd.happy()],
+      ["skeptic",   "Хм, проверим баланс?",         () => Snd.curious()],
+      ["focused",   "Режим быстрого терминала",     () => Snd.curious()],
+      ["suspicious","Подозрительно интересно...",   () => Snd.curious()],
+      ["squint",    "Прищурился — ищу QR-код",      () => Snd.tap()],
+      ["sleepy",    "Чуть задремал без счетов...",  () => Snd.tap()],
+      ["angry",     "Эй, хватит тыкать!",           () => Snd.grumpy()],
+      ["worried",   "Всё в порядке?",               () => Snd.curious()]
+    ];
+    let lastEmoIdx = -1;
+    document.getElementById("homeEyesBox").addEventListener("click", () => {
+      if (st.reacting) return;
+      st.reacting = true;
+      tg?.HapticFeedback?.impactOccurred("light");
+      let i; do { i = Math.floor(Math.random() * TAP_EMOTIONS.length); } while (i === lastEmoIdx);
+      lastEmoIdx = i;
+      const [emo, txt, sfx] = TAP_EMOTIONS[i];
+      document.getElementById("homeHint").textContent = txt;
+      sfx();
+      homeFace.look(0, 0);
+      homeFace.setEmotion(emo);
+      gsap.fromTo("#homeCanvas", { scale: 0.94 }, { scale: 1.05, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.out" });
+      setTimeout(() => { homeFace.setEmotion("neutral"); st.reacting = false; }, 1250);
+    });
+
+    // --- 3D-КРУГ ОПЛАТЫ + 2-СЕКУНДНАЯ ЭНЕРГИЯ ---
+    function openPayOrb(ctx) {
+      st.payCtx = ctx;
+      showScreen("screenPay");
+      payFace.setEmotion("neutral");
+      document.getElementById("payTopEyes").classList.remove("fullscreen-energy");
+      document.getElementById("orbGlow").className = "orb-glow";
+      document.getElementById("orbGlow2").className = "orb-glow-2";
+      document.getElementById("orbContent").style.display = "block";
+      document.getElementById("orbResult").style.display = "none";
+      document.getElementById("payFooter").style.display = "flex";
+      document.getElementById("payConfirmBtn").style.display = "inline-flex";
+      document.getElementById("payConfirmBtn").disabled = false;
+      document.getElementById("payConfirmBtn").textContent = "Оплатить";
+      document.getElementById("payCancelBtn").textContent = "Отменить";
+
+      document.getElementById("payBadge").textContent = ctx.kind === "order" ? ctx.merchant_title : "ПЕРЕВОД ПО QR";
+      document.getElementById("payTitle").textContent = ctx.kind === "order" ? ctx.title : `Аккаунт ID ${ctx.to_tg_id}`;
+      document.getElementById("payBalSub").textContent = `Ваш баланс: ${st.bal} RP`;
+
+      if (ctx.kind === "order") {
+        document.getElementById("payFixedAmt").style.display = "block";
+        document.getElementById("payCustomAmtWrap").style.display = "none";
+        document.getElementById("payAmtNum").textContent = ctx.amount_rp;
+      } else {
+        document.getElementById("payFixedAmt").style.display = "none";
+        document.getElementById("payCustomAmtWrap").style.display = "flex";
+        document.getElementById("payCustomAmt").value = ctx.amount_rp || "";
+      }
+      gsap.fromTo("#orbStage", { scale: 0.6, opacity: 0, rotation: -35 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.55, ease: "back.out(1.5)" });
+    }
+
+    function spawnEnergyDollars() {
+      const layer = document.getElementById("energyLayer");
+      layer.innerHTML = ""; layer.style.display = "block";
+      const syms = ["$", "RP", "$", "RP", "$"];
+      for (let i = 0; i < 4; i++) {
+        const ring = document.createElement("div");
+        ring.className = "energy-ring";
+        layer.appendChild(ring);
+        gsap.fromTo(ring, { scale: 0.4, opacity: 0.85 }, { scale: 6.5, opacity: 0, duration: 1.15, delay: i * 0.35, ease: "power2.out" });
+      }
+      for (let i = 0; i < 22; i++) {
+        const el = document.createElement("div");
+        el.className = "energy-token";
+        el.textContent = syms[i % syms.length];
+        layer.appendChild(el);
+        const angle = (Math.PI * 2 * i) / 22 + Math.random() * 0.35;
+        const dist = 120 + Math.random() * 145;
+        gsap.fromTo(el,
+          { x: -10, y: -10, scale: 0.3, opacity: 0 },
+          { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, scale: 1.3, opacity: 1, duration: 0.72, delay: Math.random() * 0.85, ease: "power2.out",
+            onComplete: () => gsap.to(el, { opacity: 0, scale: 0.4, duration: 0.35 }) }
+        );
+      }
+    }
+
+    document.getElementById("payConfirmBtn").addEventListener("click", async () => {
+      if (!st.payCtx) return;
+      let amt = st.payCtx.amount_rp;
+      if (st.payCtx.kind === "transfer") {
+        amt = parseInt(document.getElementById("payCustomAmt").value, 10);
+        if (!amt || amt < 1) { showRtBanner("Введите сумму в RP", "sadDown"); return; }
+      }
+
+      document.getElementById("payConfirmBtn").disabled = true;
+      document.getElementById("payFooter").style.display = "none";
+
+      gsap.to("#orbStage", { scale: 0.3, opacity: 0, duration: 0.28, ease: "power2.in" });
+      document.getElementById("payTopEyes").classList.add("fullscreen-energy");
+      payFace.setEmotion("focused");
+      Snd.energy(); tg?.HapticFeedback?.impactOccurred("medium");
+      spawnEnergyDollars();
+      setTimeout(() => payFace.setEmotion("awe"), 950);
+
+      const minWait = new Promise(r => setTimeout(r, 2000));
+      let payOk = false, resMsg = "", resSub = "";
+      try {
+        if (st.payCtx.kind === "order") {
+          const r = await api(`/api/v1/orders/${encodeURIComponent(st.payCtx.order_id)}/pay`, { method: "POST" });
+          payOk = true; resMsg = "Оплачено!"; resSub = `Остаток: ${r.wallet_balance} RP`; setBalance(r.wallet_balance);
+        } else {
+          const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id: st.payCtx.to_tg_id, amount: amt, comment: "Перевод по QR" }) });
+          payOk = true; resMsg = "Переведено!"; resSub = `Получателю: ${r.net_rp} RP`; setBalance(r.wallet_balance);
+        }
+      } catch (err) {
+        payOk = false; resMsg = "Не прошло"; resSub = err.message;
+      }
+      await minWait;
+
+      document.getElementById("energyLayer").style.display = "none";
+      document.getElementById("payTopEyes").classList.remove("fullscreen-energy");
+      document.getElementById("orbContent").style.display = "none";
+      document.getElementById("orbResult").style.display = "flex";
+      document.getElementById("orbOkSvg").style.display = payOk ? "block" : "none";
+      document.getElementById("orbErrSvg").style.display = payOk ? "none" : "block";
+      document.getElementById("orbResTitle").textContent = resMsg;
+      document.getElementById("orbResSub").textContent = resSub;
+      document.getElementById("orbGlow").className = `orb-glow ${payOk ? "state-success" : "state-error"}`;
+      document.getElementById("orbGlow2").className = `orb-glow-2 ${payOk ? "state-success" : "state-error"}`;
+
+      payFace.setEmotion(payOk ? "glee" : "sadDown");
+      if (payOk) { Snd.ok(); tg?.HapticFeedback?.notificationOccurred("success"); }
+      else { Snd.err(); tg?.HapticFeedback?.notificationOccurred("error"); }
+
+      gsap.fromTo("#orbStage",
+        { scale: 0.25, opacity: 0, rotation: -360 },
+        { scale: 1.05, opacity: 1, rotation: 0, duration: 0.72, ease: "back.out(1.4)",
+          onComplete: () => gsap.to("#orbStage", { scale: 1, duration: 0.2 }) }
+      );
+      if (payOk) gsap.fromTo("#orbOkPath", { strokeDashoffset: 94 }, { strokeDashoffset: 0, duration: 0.5, delay: 0.24 });
+      else {
+        gsap.fromTo("#orbErrP1", { strokeDashoffset: 64 }, { strokeDashoffset: 0, duration: 0.3, delay: 0.24 });
+        gsap.fromTo("#orbErrP2", { strokeDashoffset: 64 }, { strokeDashoffset: 0, duration: 0.3, delay: 0.42 });
+      }
+
+      loadProfile();
+      setTimeout(() => {
+        document.getElementById("payFooter").style.display = "flex";
+        document.getElementById("payConfirmBtn").style.display = "none";
+        document.getElementById("payCancelBtn").textContent = "Готово — на главную";
+      }, 650);
+    });
+
+    document.getElementById("payCancelBtn").addEventListener("click", () => { Snd.tap(); showScreen("screenHome"); });
+
+    async function handleQrString(raw) {
+      const s = (raw || "").trim();
+      const uidMatch = s.match(/(?:rp_uid:|start=uid_)(\d+)/i);
+      if (uidMatch) { openPayOrb({ kind: "transfer", to_tg_id: parseInt(uidMatch[1], 10), amount_rp: 0 }); return true; }
+      const ordMatch = s.match(/ord_[a-f0-9]+/i);
+      if (ordMatch) {
+        try {
+          const o = await api(`/api/v1/orders/${encodeURIComponent(ordMatch[0])}`);
+          if (o.status === "paid") { showRtBanner("Этот счёт уже оплачен", "happy"); return true; }
+          openPayOrb({ kind: "order", ...o }); return true;
+        } catch (err) { showRtBanner(err.message, "sadDown"); return true; }
+      }
+      showRtBanner("Неизвестный QR-код", "sadDown"); return false;
+    }
+
+    document.getElementById("homeScanBtn").addEventListener("click", () => {
+      Snd.tap();
+      if (!tg?.showScanQrPopup) { showRtBanner("Сканер работает в мобильном Telegram", "sadDown"); return; }
+      tg.showScanQrPopup({ text: "Наведите на QR-код RoboPay" }, raw => { tg.closeScanQrPopup(); handleQrString(raw); return true; });
+    });
+
+    // --- QR ГЕНЕРАЦИЯ И ПОДЕЛИТЬСЯ ---
+    function makeQr(id, text) {
+      const el = document.getElementById(id); el.innerHTML = "";
+      const qr = new QRCodeStyling({
+        width: 196, height: 196, data: text, margin: 6,
+        dotsOptions: { color: "#0b1220", type: "rounded" },
+        cornersSquareOptions: { color: THEMES[themeIdx].eye, type: "extra-rounded" },
+        cornersDotOptions: { color: "#0b1220", type: "dot" },
+        backgroundOptions: { color: "#ffffff" }
+      });
+      qr.append(el); return qr;
+    }
+
+    async function shareQrCard(qrObj, shareUrl, titleText) {
+      Snd.tap();
+      try {
+        if (qrObj && navigator.canShare) {
+          const blob = await qrObj.getRawData("png");
+          const file = new File([blob], "robopay-qr.png", { type: "image/png" });
+          if (navigator.canShare({ files: [file] })) { await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] }); return; }
+        }
+      } catch {}
+      const tgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(titleText)}`;
+      tg?.openTelegramLink ? tg.openTelegramLink(tgShare) : window.open(tgShare, "_blank");
+    }
+
+    document.getElementById("shareMyQrBtn").addEventListener("click", () => {
+      if (!st.user) return;
+      shareQrCard(st.myQrObj, `https://t.me/${st.botUser}?start=uid_${st.user.tg_id}`, `Перевод в RoboPay (ID ${st.user.tg_id})`);
+    });
+    document.getElementById("shareInvQrBtn").addEventListener("click", () => {
+      if (!st.lastInvLink) return;
+      shareQrCard(st.lastQrObj, st.lastInvLink, "Счёт на оплату в RoboPay");
+    });
+
+    // --- ТЕХПОДДЕРЖКА (GROQ + ГОЛОС + ПИКСЕЛЬНЫЙ РОТ) ---
+    function openSupportScreen() {
+      Snd.tap(); showScreen("screenSupport"); setSupportMode(false);
+      supFace.setEmotion("happy"); setTimeout(() => supFace.setEmotion("neutral"), 900);
+    }
+    function setSupportMode(textMode) {
+      st.supTextMode = textMode;
+      document.getElementById("supFaceStage").classList.toggle("compact", textMode);
+      document.getElementById("supChatWrap").classList.toggle("open", textMode);
+      document.getElementById("supVoiceBar").style.display = textMode ? "none" : "flex";
+      document.getElementById("supStatus").textContent = textMode ? "Робот поддержки онлайн" : "Нажми на экран и задай вопрос голосом";
+    }
+    document.getElementById("supBackBtn").addEventListener("click", () => { window.speechSynthesis?.cancel(); supFace.talking = false; showScreen("screenMenu"); });
+    document.getElementById("openTextChatBtn").addEventListener("click", () => { Snd.tap(); setSupportMode(true); });
+    document.getElementById("supModeToggle").addEventListener("click", () => { Snd.tap(); setSupportMode(!st.supTextMode); });
+
+    function appendChat(role, text) {
+      const box = document.getElementById("supMessages"), div = document.createElement("div");
+      div.className = `msg-bubble ${role === "user" ? "msg-user" : "msg-bot"}`;
+      div.textContent = text; box.appendChild(div); box.scrollTop = box.scrollHeight;
+    }
+
+    function speakText(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "ru-RU"; utt.rate = 1.05; utt.pitch = 1.06;
+      utt.onstart = () => { supFace.talking = true; supFace.setEmotion("happy"); document.getElementById("supStatus").textContent = "Говорю..."; };
+      utt.onend = utt.onerror = () => { supFace.talking = false; supFace.setEmotion("neutral"); document.getElementById("supStatus").textContent = st.supTextMode ? "Робот поддержки онлайн" : "Нажми на экран и задай вопрос голосом"; };
+      window.speechSynthesis.speak(utt);
+    }
+
+    async function sendSupport(text, speakReply) {
+      if (!text.trim()) return;
+      appendChat("user", text);
+      st.supHistory.push({ role: "user", content: text });
+      document.getElementById("supStatus").textContent = "Думаю...";
+      supFace.setEmotion("focused");
+      try {
+        const res = await api("/api/v1/support/chat", { method: "POST", body: JSON.stringify({ message: text, history: st.supHistory.slice(-8) }) });
+        st.supHistory.push({ role: "assistant", content: res.reply });
+        appendChat("assistant", res.reply);
+        if (speakReply) speakText(res.reply);
+        else {
+          supFace.setEmotion("happy"); supFace.talking = true;
+          setTimeout(() => { supFace.talking = false; supFace.setEmotion("neutral"); }, 900);
+          document.getElementById("supStatus").textContent = "Робот поддержки онлайн";
+        }
+      } catch {
+        appendChat("assistant", "Не удалось связаться с сервером поддержки.");
+        supFace.setEmotion("sadDown");
+      }
+    }
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let activeRec = null;
+    document.getElementById("supFaceStage").addEventListener("click", () => {
+      if (st.supTextMode) return;
+      Snd.tap();
+      if (!SpeechRec) { setSupportMode(true); showRtBanner("Открыт текстовый чат", "happy"); return; }
+      window.speechSynthesis?.cancel();
+      try {
+        if (activeRec) activeRec.abort();
+        activeRec = new SpeechRec(); activeRec.lang = "ru-RU"; activeRec.interimResults = false;
+        activeRec.onstart = () => { document.getElementById("supStatus").textContent = "Слушаю... говорите"; supFace.setEmotion("surprised"); };
+        activeRec.onresult = e => sendSupport(e.results[0][0].transcript, true);
+        activeRec.onerror = () => { document.getElementById("supStatus").textContent = "Не расслышал — нажмите снова или напишите текстом"; supFace.setEmotion("skeptic"); };
+        activeRec.start();
+      } catch { setSupportMode(true); }
+    });
+    document.getElementById("supSendBtn").addEventListener("click", () => { const i = document.getElementById("supTextInput"), v = i.value.trim(); if (!v) return; i.value = ""; sendSupport(v, false); });
+    document.getElementById("supTextInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("supSendBtn").click(); });
+
+    // --- МОДАЛКИ КОШЕЛЬКА ---
+    function openModal(id) { Snd.tap(); const m = document.getElementById(id); m.classList.add("open"); gsap.fromTo(m.querySelector(".modal-box"), { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: "back.out(1.5)" }); }
+    function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+    document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
+    document.querySelectorAll(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModal(b.id); }));
+
+    document.getElementById("openTopupBtn").addEventListener("click", () => openModal("topupModal"));
+    document.getElementById("openWithdrawBtn").addEventListener("click", () => openModal("withdrawModal"));
+    document.getElementById("openTransferBtn").addEventListener("click", () => openModal("transferModal"));
+    document.getElementById("ownerGiftLink").addEventListener("click", e => { e.preventDefault(); Snd.tap(); tg?.openTelegramLink ? tg.openTelegramLink(st.ownerUrl) : window.open(st.ownerUrl, "_blank"); });
+
+    document.querySelectorAll("#topupChips .chip").forEach(c => c.addEventListener("click", () => {
+      Snd.tap(); document.querySelectorAll("#topupChips .chip").forEach(x => x.classList.remove("active"));
+      c.classList.add("active"); document.getElementById("topAmt").value = c.dataset.amt;
+    }));
+
+    document.getElementById("submitTopupBtn").addEventListener("click", async e => {
+      const amount = parseInt(document.getElementById("topAmt").value, 10);
+      if (!amount || amount < 1 || amount > 100) { showRtBanner("Сумма подарка от 1 до 100 Stars", "sadDown"); return; }
+      e.currentTarget.disabled = true;
+      try {
+        await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment: document.getElementById("topComm").value.trim() }) });
+        closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
+        showRtBanner("Заявка на пополнение отправлена!", "glee"); loadProfile();
+      } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
+    });
+
+    const starSvg = `<svg class="stk stk-sm"><use href="#stk-star"/></svg>`;
+    const giftSvg = `<svg class="stk stk-sm"><use href="#stk-gift"/></svg>`;
+
+    function renderTiers() {
+      const g = document.getElementById("tierGrid");
+      g.innerHTML = st.tiers.map(t => `
+        <button class="tier-card ${st.selectedGift === t.gift_stars ? "active" : ""}" data-gift="${t.gift_stars}">
+          <div style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:5px;">${giftSvg} ${t.gift_stars} ${starSvg}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--eye-deep);margin-top:2px;">Цена: ${t.cost_rp} RP</div>
+          <div style="font-size:11px;color:var(--muted);">Получите ~${t.receive_stars} ${starSvg}</div>
+        </button>`).join("");
+      g.querySelectorAll(".tier-card").forEach(c => c.addEventListener("click", () => {
+        Snd.tap(); st.selectedGift = parseInt(c.dataset.gift, 10); renderTiers();
+        const t = st.tiers.find(x => x.gift_stars === st.selectedGift), ok = st.bal >= t.cost_rp;
+        document.getElementById("wdrSummary").innerHTML = `Подарок <b>${t.gift_stars} ${starSvg}</b> (~${t.receive_stars} ${starSvg})<br>Спишется: <b>${t.cost_rp} RP</b> (комиссия ${t.fee_rp} RP)` + (ok ? "" : `<br><span style="color:var(--red);">Не хватает ${t.cost_rp - st.bal} RP</span>`);
+        document.getElementById("submitWdrBtn").disabled = !ok;
+      }));
+    }
+
+    document.getElementById("submitWdrBtn").addEventListener("click", async e => {
+      if (!st.selectedGift) return;
+      e.currentTarget.disabled = true;
+      try {
+        const r = await api("/api/v1/withdraw", { method: "POST", body: JSON.stringify({ gift_stars: st.selectedGift, note: document.getElementById("wdrNote").value.trim() }) });
+        closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "glee"); loadProfile();
+      } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
+    });
+
+    document.getElementById("trAmt").addEventListener("input", e => {
+      const a = parseInt(e.target.value, 10) || 0, fee = a > 0 ? Math.ceil(a * st.commRate) : 0;
+      document.getElementById("trPreview").innerHTML = a > 0 ? `Комиссия: <b>${fee} RP</b> • Получатель получит: <b>${Math.max(0, a - fee)} RP</b>` : `Комиссия: ${Math.round(st.commRate * 100)}%`;
+    });
+
+    document.getElementById("submitTrBtn").addEventListener("click", async e => {
+      const to_tg_id = parseInt(document.getElementById("trTo").value, 10), amount = parseInt(document.getElementById("trAmt").value, 10);
+      if (!to_tg_id || !amount) { showRtBanner("Заполните ID и сумму", "sadDown"); return; }
+      e.currentTarget.disabled = true;
+      try {
+        const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment: document.getElementById("trComm").value.trim() }) });
+        closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "glee"); loadProfile();
+      } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
+    });
+
+    document.getElementById("createInvBtn").addEventListener("click", async e => {
+      const merchant_id = document.getElementById("invProj").value, title = document.getElementById("invTitle").value.trim(), amount = parseInt(document.getElementById("invAmt").value, 10);
+      if (!merchant_id || !title || !amount) { showRtBanner("Заполните все поля", "sadDown"); return; }
+      e.currentTarget.disabled = true;
+      try {
+        const o = await api("/api/v1/webapp/invoices", { method: "POST", body: JSON.stringify({ merchant_id, title, amount }) });
+        st.lastInvLink = o.checkout_deeplink; document.getElementById("invRes").style.display = "block";
+        st.lastQrObj = makeQr("invQrBox", o.qr_payload); showRtBanner("QR-счёт создан!", "glee");
+      } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
+    });
+    document.getElementById("copyInvBtn").addEventListener("click", () => { navigator.clipboard?.writeText(st.lastInvLink); showRtBanner("Ссылка скопирована", "happy"); });
+    document.getElementById("copyIdBtn").addEventListener("click", () => { if (!st.user) return; navigator.clipboard?.writeText(String(st.user.tg_id)); showRtBanner("ID скопирован", "happy"); });
+
+    // --- ЗАГРУЗКА И REAL-TIME WEBSOCKET ---
+    async function loadProfile() {
+      if (!INIT_DATA) return;
+      try {
+        const d = await api("/api/v1/me");
+        st.user = d.user; st.ownerUrl = d.owner_url; st.botUser = d.bot_username;
+        st.commRate = d.commission_rate; st.wdrRate = d.withdraw_fee_rate; st.tiers = d.gift_tiers;
+        setBalance(d.user.wallet_balance);
+        document.getElementById("ownerNickTxt").textContent = d.owner_username;
+        document.getElementById("ownerUrlTxt").textContent = d.owner_url;
+        document.getElementById("ownerGiftLink").href = d.owner_url;
+        document.getElementById("wdrFeePct").textContent = `${Math.round(d.withdraw_fee_rate * 100)}%`;
+        document.getElementById("myIdLbl").textContent = `ID: ${d.user.tg_id}`;
+        st.myQrObj = makeQr("myQrBox", `https://t.me/${d.bot_username}?start=uid_${d.user.tg_id}`);
+        renderTiers();
+
+        const hasP = d.projects.length > 0;
+        document.getElementById("noProjNote").style.display = hasP ? "none" : "block";
+        document.getElementById("invBox").style.display = hasP ? "block" : "none";
+        if (hasP) document.getElementById("invProj").innerHTML = d.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
+
+        const stMap = { pending: ["На проверке", "b-pending"], approved: ["Одобрено", "b-approved"], rejected: ["Отклонено", "b-rejected"] };
+        const reqs = [
+          ...d.topups.map(r => ({ ts: r.created_at, t: `Пополнение +${r.amount_rp} RP`, s: r.request_id, st: r.status })),
+          ...d.withdrawals.map(r => ({ ts: r.created_at, t: `Вывод ${giftSvg} ${r.gift_stars} ${starSvg} (-${r.cost_rp} RP)`, s: `${r.request_id} • ~${r.receive_stars} Stars`, st: r.status }))
+        ].sort((a, b) => (b.ts || "").localeCompare(a.ts || "")).slice(0, 8);
+        if (reqs.length) document.getElementById("reqList").innerHTML = reqs.map(r => `<div class="tx-item"><div><div style="font-size:14px;font-weight:600;">${r.t}</div><div class="mono">${r.s}</div></div><span class="badge ${stMap[r.st][1]}">${stMap[r.st][0]}</span></div>`).join("");
+
+        if (d.history.length) document.getElementById("histList").innerHTML = d.history.map(h => `<div class="tx-item"><div><div style="font-size:14px;font-weight:600;">${h.title}</div><div class="mono">${h.id}</div></div><div class="tabular" style="font-weight:700;color:${h.delta > 0 ? "var(--green)" : "var(--ink)"};">${h.delta > 0 ? "+" : ""}${h.delta} RP</div></div>`).join("");
+      } catch (e) { console.error(e); }
+    }
+
+    function connectRealtime() {
+      if (!INIT_DATA) return;
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${proto}//${location.host}/ws?initData=${encodeURIComponent(INIT_DATA)}`);
+      let pingInt = null;
+      ws.onopen = () => { pingInt = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000); };
+      ws.onmessage = e => {
+        if (e.data === "pong") return;
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "sync") {
+            if (typeof msg.wallet_balance === "number") setBalance(msg.wallet_balance);
+            if (msg.notify) showRtBanner(msg.notify, msg.emotion || "glee");
+            loadProfile();
+          }
+        } catch {}
+      };
+      ws.onclose = () => { clearInterval(pingInt); setTimeout(connectRealtime, 3000); };
+    }
+
+    (async () => {
+      gsap.fromTo("#splashCanvas", { scale: 0.72, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.7)" });
+      gsap.to("#splashTitle", { opacity: 1, y: 0, duration: 0.42, delay: 0.22, ease: "power2.out" });
+
+      await loadProfile();
+      connectRealtime();
+
+      const params = new URLSearchParams(location.search);
+      const page = params.get("page");
+      const orderId = tg?.initDataUnsafe?.start_param || params.get("order_id");
+      const toUid = params.get("to_uid");
+
+      setTimeout(() => {
+        gsap.to("#splash", { opacity: 0, duration: 0.36, onComplete: () => { document.getElementById("splash").style.display = "none"; } });
+        if (page === "support") openSupportScreen();
+        else if (page === "wallet" || location.hash === "#wallet") switchSub("Wallet");
+        else if (orderId) handleQrString(orderId);
+        else if (toUid) handleQrString(`rp_uid:${toUid}`);
+      }, 1100);
+    })();
+  </script>
+</body>
+</html>
