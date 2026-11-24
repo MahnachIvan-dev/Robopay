@@ -28,6 +28,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     MenuButtonWebApp,
     WebAppInfo,
+    LabeledPrice,
 )
 from fastapi import FastAPI, Header, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -253,6 +254,12 @@ def init_db() -> None:
                 status TEXT DEFAULT 'pending',
                 created_at TEXT NOT NULL,
                 reviewed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS stars_payments (
+                telegram_charge_id TEXT PRIMARY KEY,
+                user_tg_id INTEGER NOT NULL,
+                amount_stars INTEGER NOT NULL,
+                created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS transfers (
                 transfer_id TEXT PRIMARY KEY,
@@ -565,6 +572,7 @@ def build_main_menu(user: types.User) -> tuple[str, InlineKeyboardMarkup]:
     if PUBLIC_URL.startswith("https://"):
         btns.append([InlineKeyboardButton(text="Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
     btns.append([
+        InlineKeyboardButton(text="⭐ Пополнить Stars", callback_data="stars_topup"),
         InlineKeyboardButton(text="💳 Кошелёк / Вывод", callback_data="wallet"),
         InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
     ])
@@ -632,6 +640,91 @@ async def cmd_start(message: types.Message, command: CommandObject, state: FSMCo
         return
     text, kb = build_main_menu(message.from_user)
     await message.answer(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
+
+
+@dp.message(Command("stars"))
+async def cmd_stars(msg: types.Message) -> None:
+    await send_stars_topup_menu(msg)
+
+
+async def send_stars_topup_menu(target) -> None:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⭐ 10 Stars — 10 RP", callback_data="stars_buy:10")],
+        [InlineKeyboardButton(text="⭐ 25 Stars — 25 RP", callback_data="stars_buy:25")],
+        [InlineKeyboardButton(text="⭐ 50 Stars — 50 RP", callback_data="stars_buy:50")],
+        [InlineKeyboardButton(text="⭐ 100 Stars — 100 RP", callback_data="stars_buy:100")],
+        [InlineKeyboardButton(text="◀️ Главное меню", callback_data="main_menu")],
+    ])
+    await target.answer("Выберите сумму пополнения. Оплата проходит внутри Telegram Stars, без внешнего кошелька.", reply_markup=kb)
+
+
+@dp.callback_query(F.data == "stars_topup")
+async def cb_stars_topup(cb: types.CallbackQuery) -> None:
+    await send_stars_topup_menu(cb.message)
+    await cb.answer()
+
+
+@dp.callback_query(F.data.startswith("stars_buy:"))
+async def cb_stars_buy(cb: types.CallbackQuery) -> None:
+    amount = int(cb.data.split(":")[1])
+    if amount not in (10, 25, 50, 100):
+        await cb.answer("Недопустимая сумма", show_alert=True)
+        return
+    payload = f"rpstars:{cb.from_user.id}:{amount}:{secrets.token_hex(6)}"
+    try:
+        await bot.send_invoice(
+            chat_id=cb.from_user.id,
+            title=f"Пополнение RoboPay на {amount} RP",
+            description=f"Зачисление {amount} RP на кошелёк RoboPay",
+            payload=payload,
+            currency="XTR",
+            prices=[LabeledPrice(label=f"{amount} Telegram Stars", amount=amount)],
+            provider_token="",
+        )
+        await cb.answer("Счёт отправлен в личный чат с ботом")
+    except Exception as exc:
+        print(f"[Stars Invoice Error] {exc}")
+        await cb.answer("Не удалось создать счёт. Попробуйте позже.", show_alert=True)
+
+
+@dp.pre_checkout_query()
+async def stars_pre_checkout(query: types.PreCheckoutQuery) -> None:
+    try:
+        parts = query.invoice_payload.split(":")
+        valid = len(parts) == 4 and parts[0] == "rpstars" and int(parts[1]) == query.from_user.id and int(parts[2]) in (10, 25, 50, 100)
+        valid = valid and query.currency == "XTR" and query.total_amount == int(parts[2])
+    except Exception:
+        valid = False
+    await query.answer(ok=valid, error_message=None if valid else "Счёт RoboPay недействителен. Создайте новый.")
+
+
+@dp.message(F.successful_payment)
+async def stars_payment_success(msg: types.Message) -> None:
+    sp = msg.successful_payment
+    try:
+        parts = sp.invoice_payload.split(":")
+        amount = int(parts[2])
+        if len(parts) != 4 or parts[0] != "rpstars" or int(parts[1]) != msg.from_user.id or amount not in (10, 25, 50, 100):
+            await msg.answer("Платёж получен, но счёт не прошёл проверку. Обратитесь в поддержку RoboPay.")
+            return
+    except Exception:
+        await msg.answer("Платёж получен, но данные счёта не удалось проверить. Обратитесь в поддержку RoboPay.")
+        return
+    ensure_user(msg.from_user.id, msg.from_user.username, msg.from_user.first_name)
+    with get_db() as conn:
+        inserted = conn.execute(
+            "INSERT OR IGNORE INTO stars_payments (telegram_charge_id, user_tg_id, amount_stars, created_at) VALUES (?, ?, ?, ?)",
+            (sp.telegram_payment_charge_id, msg.from_user.id, amount, utc_now())
+        ).rowcount
+        if inserted:
+            conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (amount, msg.from_user.id))
+        bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (msg.from_user.id,)).fetchone()["wallet_balance"]
+    if inserted:
+        asyncio.create_task(sync_db_to_telegram(f"Пополнение Stars {amount} RP"))
+        await msg.answer(f"✅ Оплата прошла! Зачислено <b>+{amount} RP</b>. Баланс: <b>{bal} RP</b>.", parse_mode="HTML")
+        asyncio.create_task(rt_hub.push(msg.from_user.id, {"type":"sync","wallet_balance":bal,"notify":f"+{amount} RP за Telegram Stars","emotion":"glee"}))
+    else:
+        await msg.answer(f"Этот платёж уже был учтён. Баланс: {bal} RP.")
 
 
 @dp.callback_query(F.data == "main_menu")
