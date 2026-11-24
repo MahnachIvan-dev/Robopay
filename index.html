@@ -148,11 +148,11 @@
     .orb-glow, .orb-glow-2 {
       position: absolute; inset: -16px; border-radius: 50%;
       background: conic-gradient(from 0deg, #00e5ff, #6366f1, #ec4899, #f59e0b, #10b981, #00e5ff);
-      filter: blur(26px); opacity: 0.72; animation: spinGlow 4.2s linear infinite;
+      filter: blur(20px); opacity: 0.34; animation: spinGlow 4.2s linear infinite;
       transition: background 0.45s ease, opacity 0.4s ease;
     }
     .orb-glow-2 {
-      inset: -6px; filter: blur(12px); opacity: 0.42; animation: spinGlow 6.5s linear infinite reverse;
+      inset: -6px; filter: blur(9px); opacity: 0.20; animation: spinGlow 6.5s linear infinite reverse;
     }
     .orb-glow.state-success, .orb-glow-2.state-success {
       background: conic-gradient(from 0deg, #10b981, #34d399, #059669, #6ee7b7, #10b981);
@@ -694,7 +694,7 @@
       const lx = px - cx, ly = py - cy;
       if (Math.abs(lx) > halfW || Math.abs(ly) > halfH) return false;
       // Скругление углов
-      const rad = Math.min(3.2, halfW * 0.45, halfH * 0.48);
+      const rad = Math.min(0.8, halfW * 0.12, halfH * 0.12);
       const dx = Math.max(0, Math.abs(lx) - (halfW - rad));
       const dy = Math.max(0, Math.abs(ly) - (halfH - rad));
       if (dx * dx + dy * dy > rad * rad) return false;
@@ -1155,7 +1155,22 @@
         if (qrObj && navigator.canShare) {
           const blob = await qrObj.getRawData("png");
           const file = new File([blob], "robopay-qr.png", { type: "image/png" });
-          if (navigator.canShare({ files: [file] })) { await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] }); return; }
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] });
+            return;
+          }
+        }
+      } catch {}
+      // Fallback saves the QR image itself rather than sharing only a link.
+      try {
+        if (qrObj) {
+          const blob = await qrObj.getRawData("png");
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "robopay-qr.png"; a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+          showRtBanner("QR-код сохранён как изображение — прикрепите его к сообщению", "happy");
+          return;
         }
       } catch {}
       const tgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(titleText)}`;
@@ -1211,9 +1226,16 @@
       supFace.setEmotion("focused");
       try {
         const res = await api("/api/v1/support/chat", { method: "POST", body: JSON.stringify({ message: text, history: st.supHistory.slice(-8) }) });
-        st.supHistory.push({ role: "assistant", content: res.reply });
-        appendChat("assistant", res.reply);
-        if (speakReply) speakText(res.reply);
+        const reply = typeof res?.reply === "string" ? res.reply.trim() : "";
+        if (!reply || !/[а-яёa-z]{2,}/i.test(reply) || reply.length < 3) {
+          appendChat("assistant", "Не получилось сформировать понятный ответ. Попробуйте переформулировать вопрос.");
+          document.getElementById("supStatus").textContent = "Ответ не распознан — попробуйте ещё раз";
+          supFace.setEmotion("skeptic");
+          return;
+        }
+        st.supHistory.push({ role: "assistant", content: reply });
+        appendChat("assistant", reply);
+        if (speakReply) speakText(reply);
         else {
           supFace.setEmotion("happy"); supFace.talking = true;
           setTimeout(() => { supFace.talking = false; supFace.setEmotion("neutral"); }, 900);
