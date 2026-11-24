@@ -1155,7 +1155,22 @@
         if (qrObj && navigator.canShare) {
           const blob = await qrObj.getRawData("png");
           const file = new File([blob], "robopay-qr.png", { type: "image/png" });
-          if (navigator.canShare({ files: [file] })) { await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] }); return; }
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] });
+            return;
+          }
+        }
+      } catch {}
+      // Fallback saves the QR image itself rather than sharing only a link.
+      try {
+        if (qrObj) {
+          const blob = await qrObj.getRawData("png");
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "robopay-qr.png"; a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+          showRtBanner("QR-код сохранён как изображение — прикрепите его к сообщению", "happy");
+          return;
         }
       } catch {}
       const tgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(titleText)}`;
@@ -1211,9 +1226,16 @@
       supFace.setEmotion("focused");
       try {
         const res = await api("/api/v1/support/chat", { method: "POST", body: JSON.stringify({ message: text, history: st.supHistory.slice(-8) }) });
-        st.supHistory.push({ role: "assistant", content: res.reply });
-        appendChat("assistant", res.reply);
-        if (speakReply) speakText(res.reply);
+        const reply = typeof res?.reply === "string" ? res.reply.trim() : "";
+        if (!reply || !/[а-яёa-z]{2,}/i.test(reply) || reply.length < 3) {
+          appendChat("assistant", "Не получилось сформировать понятный ответ. Попробуйте переформулировать вопрос.");
+          document.getElementById("supStatus").textContent = "Ответ не распознан — попробуйте ещё раз";
+          supFace.setEmotion("skeptic");
+          return;
+        }
+        st.supHistory.push({ role: "assistant", content: reply });
+        appendChat("assistant", reply);
+        if (speakReply) speakText(reply);
         else {
           supFace.setEmotion("happy"); supFace.talking = true;
           setTimeout(() => { supFace.talking = false; supFace.setEmotion("neutral"); }, 900);
