@@ -287,6 +287,14 @@
       background: rgba(255,255,255,0.88); backdrop-filter: blur(20px); display: flex; gap: 8px;
     }
 
+    #rpTxCelebration{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(9,18,28,.42);backdrop-filter:blur(9px);padding:24px}
+    #rpTxCelebration.show{display:flex;animation:rpTxFade .22s ease both}
+    #rpTxCelebration .rp-tx-panel{width:min(310px,100%);padding:26px 20px 22px;text-align:center;border-radius:28px;background:var(--card,#fff);box-shadow:0 24px 80px #00182740;animation:rpTxPop .55s cubic-bezier(.16,1,.3,1) both}
+    #rpTxCelebration canvas{width:112px;height:84px;display:block;margin:0 auto 12px;filter:drop-shadow(0 0 16px rgba(0,210,225,.35))}
+    #rpTxCelebration .rp-tx-title{font-size:19px;font-weight:800;margin-bottom:5px}
+    #rpTxCelebration .rp-tx-sub{font-size:13px;color:var(--muted)}
+    @keyframes rpTxFade{from{opacity:0}to{opacity:1}}@keyframes rpTxPop{0%{opacity:0;transform:translateY(16px) scale(.86)}70%{transform:translateY(-3px) scale(1.025)}100%{opacity:1;transform:none}}
+    @media(prefers-reduced-motion:reduce){#rpTxCelebration.show .rp-tx-panel{animation:none}}
     .rp-tx-flash{animation:rpTxFlash 1.05s cubic-bezier(.2,.8,.2,1) both;position:relative}
     .rp-tx-flash:after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid rgba(0,220,235,.55);pointer-events:none;animation:rpTxRing 1.05s ease-out both}
     .rp-tx-success{animation:rpTxSuccess .72s cubic-bezier(.16,1,.3,1) both}
@@ -669,6 +677,7 @@
     </div>
   </div>
 
+  <div id="rpTxCelebration" aria-live="polite"><div class="rp-tx-panel"><canvas id="rpTxFaceCanvas" width="224" height="168"></canvas><div class="rp-tx-title" id="rpTxTitle">Готово!</div><div class="rp-tx-sub" id="rpTxSub">Операция выполнена успешно</div></div></div>
   <script>
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#ffffff"); tg.setBackgroundColor("#ffffff"); }
@@ -719,26 +728,17 @@
     }
 
     // RoboPay eyes: smooth, solid leaf-shaped vector forms (not pixel rectangles).
-    function drawSolidEye(ctx, cx, cy, e, scale, side) {
-      const w=Math.max(1,e.w*scale), h=Math.max(1,e.h*scale);
-      const tilt=((e.tL||0)-(e.tR||0))*0.012;
-      ctx.save(); ctx.translate(cx,cy+(e.y||0)*scale);
-      ctx.rotate((side==="L"?-1:1)*tilt); if(side==="R")ctx.scale(-1,1);
-      const path=new Path2D();
-      path.moveTo(-w*.52,-h*.30);
-      path.bezierCurveTo(-w*.48,-h*.62,-w*.05,-h*.68,w*.30,-h*.43);
-      path.bezierCurveTo(w*.53,-h*.26,w*.62,h*.13,w*.38,h*.39);
-      path.bezierCurveTo(w*.20,h*.58,-w*.22,h*.60,-w*.46,h*.30);
-      path.bezierCurveTo(-w*.58,h*.12,-w*.60,-h*.10,-w*.52,-h*.30);
-      path.closePath();
-      // Пиксельный силуэт с мягко скруглёнными ячейками.
-      const cell=Math.max(1.25,Math.min(2.0,Math.min(w,h)*.19));
-      const step=cell*.88, radius=cell*.28;
-      for(let y=-h*.72;y<=h*.72;y+=step){
-        for(let x=-w*.64;x<=w*.64;x+=step){
-          if(ctx.isPointInPath(path,x+step*.5,y+step*.5)){
-            ctx.beginPath(); ctx.roundRect(x,y,cell,cell,radius); ctx.fill();
-          }
+    function drawSolidEye(ctx,cx,cy,e,scale,side){
+      const w=Math.max(1,e.w*scale),h=Math.max(1,e.h*scale),tilt=((e.tL||0)-(e.tR||0))*.012;
+      ctx.save();ctx.translate(cx,cy+(e.y||0)*scale);ctx.rotate((side==="L"?-1:1)*tilt);if(side==="R")ctx.scale(-1,1);
+      // 12x7 pixel grid: цельный узнаваемый глаз, каждый пиксель слегка скруглён.
+      const rows=[ [3,8],[1,10],[0,11],[0,11],[1,10],[2,9],[4,8] ];
+      const cw=w/12,ch=h/7,gap=Math.min(cw,ch)*.10,rad=Math.min(cw,ch)*.23;
+      for(let row=0;row<rows.length;row++){
+        const [from,to]=rows[row];
+        for(let col=from;col<=to;col++){
+          const x=-w/2+col*cw+gap/2,y=-h/2+row*ch+gap/2;
+          ctx.beginPath();ctx.roundRect(x,y,cw-gap,ch-gap,rad);ctx.fill();
         }
       }
       ctx.restore();
@@ -789,8 +789,8 @@
 
         // Непрерывная idle-анимация: дыхание, микродвижение и редкое моргание.
         const idle=Math.sin(time*0.00135);
-        const blinkWave=Math.max(0,1-Math.abs(((time%4700)-2350)/115));
-        const eyeScaleY=Math.max(.16,1-blinkWave*.84+idle*.018);
+        const blinkWave=Math.max(0,1-Math.abs(((time%5200)-2600)/105));
+        const eyeScaleY=Math.max(.48,1-blinkWave*.48+idle*.014);
         const ctx = this.ctx, gw = this.gw, gh = this.gh;
         const sx = this.c.width / gw, sy = this.c.height / gh;
         ctx.clearRect(0, 0, this.c.width, this.c.height);
@@ -1310,7 +1310,21 @@
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
     document.querySelectorAll(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModal(b.id); }));
 
-    function playTxEffect(){const target=document.getElementById("walletBalBig")?.closest(".card")||document.getElementById("walletBalBig");if(!target)return;target.classList.remove("rp-tx-flash","rp-tx-success");void target.offsetWidth;target.classList.add("rp-tx-flash","rp-tx-success");setTimeout(()=>target.classList.remove("rp-tx-flash","rp-tx-success"),1200);}
+    let txFaceController=null, txFaceUntil=0, txFaceFrame=0;
+    function playTxEffect(title="Успешно!",sub="Операция выполнена"){
+      const layer=document.getElementById("rpTxCelebration");
+      document.getElementById("rpTxTitle").textContent=title;
+      document.getElementById("rpTxSub").textContent=sub;
+      layer.classList.remove("show");void layer.offsetWidth;layer.classList.add("show");
+      if(!txFaceController){txFaceController=new PixelFaceController("rpTxFaceCanvas",true);}
+      txFaceController.setEmotion("glee");txFaceController.talking=true;txFaceUntil=performance.now()+1700;
+      cancelAnimationFrame(txFaceFrame);
+      const draw=t=>{if(t>txFaceUntil){txFaceController.talking=false;layer.classList.remove("show");return;}txFaceController.tick(t);txFaceFrame=requestAnimationFrame(draw);};
+      txFaceFrame=requestAnimationFrame(draw);
+      const target=document.getElementById("walletBalBig")?.closest(".card")||document.getElementById("walletBalBig");
+      if(target){target.classList.remove("rp-tx-flash","rp-tx-success");void target.offsetWidth;target.classList.add("rp-tx-flash","rp-tx-success");setTimeout(()=>target.classList.remove("rp-tx-flash","rp-tx-success"),1200);}
+    }
+
     document.getElementById("openTopupBtn").addEventListener("click", () => openModal("topupModal"));
     document.getElementById("openWithdrawBtn").addEventListener("click", () => openModal("withdrawModal"));
     document.getElementById("openTransferBtn").addEventListener("click", () => openModal("transferModal"));
@@ -1327,7 +1341,7 @@
       e.currentTarget.disabled = true;
       try {
         await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment: document.getElementById("topComm").value.trim() }) });
-        playTxEffect(); closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
+        playTxEffect("Заявка отправлена!","Запрос на пополнение создан"); closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
         showRtBanner("Заявка на пополнение отправлена!", "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
@@ -1356,7 +1370,7 @@
       e.currentTarget.disabled = true;
       try {
         const r = await api("/api/v1/withdraw", { method: "POST", body: JSON.stringify({ gift_stars: st.selectedGift, note: document.getElementById("wdrNote").value.trim() }) });
-        playTxEffect(); closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "glee"); loadProfile();
+        playTxEffect("Вывод оформлен!","Заявка отправлена владельцу"); closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
 
@@ -1371,7 +1385,7 @@
       e.currentTarget.disabled = true;
       try {
         const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment: document.getElementById("trComm").value.trim() }) });
-        playTxEffect(); closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "glee"); loadProfile();
+        playTxEffect("Перевод выполнен!","Средства отправлены получателю"); closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
 
