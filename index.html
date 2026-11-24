@@ -525,6 +525,28 @@
           </div>
         </div>
       </div>
+      <div class="card" style="margin-top:14px;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Постоянные услуги проекта</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Услуга сохраняется в проекте. QR можно перевыпускать с новым лимитом и сроком действия.</div>
+        <div class="field"><label>Проект</label><select class="select" id="svcProj"></select></div>
+        <div class="field"><label>Название услуги</label><input class="input" id="svcTitle" maxlength="48" placeholder="VIP-доступ"/></div>
+        <div class="field"><label>Описание</label><input class="input" id="svcDesc" maxlength="255" placeholder="Доступ к закрытому разделу"/></div>
+        <div class="field"><label>Цена за оплату (RP)</label><input class="input" id="svcAmount" type="number" min="1" max="500000" placeholder="250"/></div>
+        <button class="btn btn-secondary" id="saveServiceBtn">Сохранить услугу</button>
+        <div id="serviceQrControls" style="display:none;margin-top:12px;">
+          <div class="row-2">
+            <div class="field"><label>Лимит оплат</label><input class="input" id="svcMaxUses" type="number" min="1" max="1000000" value="100"/></div>
+            <div class="field"><label>Срок QR (часов)</label><input class="input" id="svcExpiry" type="number" min="1" max="8760" value="168"/></div>
+          </div>
+          <button class="btn btn-primary" id="issueServiceQrBtn">Выпустить QR-код</button>
+        </div>
+        <div id="serviceQrResult" style="display:none;margin-top:14px;">
+          <div class="qr-wrap"><div id="serviceQrBox"></div><div class="mono" id="serviceQrInfo" style="margin-top:8px;"></div></div>
+          <button class="btn btn-secondary btn-sm" id="copyServiceQrBtn">Скопировать ссылку</button>
+        </div>
+        <div class="sec-title" style="margin-top:16px;">Сохранённые услуги</div>
+        <div id="serviceList" class="tx-list"><div class="card-soft" style="font-size:12px;color:var(--muted);">Загрузка услуг…</div></div>
+      </div>
     </div>
 
     <div class="apple-dock-wrap">
