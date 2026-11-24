@@ -16,12 +16,10 @@
       --ink: #0b1220;
       --muted: #64748b;
       --subtle: #94a3b8;
-      --eye: #00e1ff;
-      --eye-deep: #00b8e6;
-      --eye-glow: rgba(0, 225, 255, 0.45);
+      --eye: #00e5ff;
+      --eye-deep: #00acc1;
       --green: #10b981;
       --red: #ef4444;
-      --gold: #f59e0b;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -33,149 +31,177 @@
     .tabular { font-variant-numeric: tabular-nums; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--subtle); }
 
-    /* --- ЗАСТАВКА ПРИ ЗАПУСКЕ --- */
+    /* Кастомные inline SVG-стикеры */
+    .stk { display: inline-block; vertical-align: -0.18em; flex-shrink: 0; }
+    .stk-sm { width: 15px; height: 15px; }
+    .stk-md { width: 20px; height: 20px; }
+    .stk-lg { width: 28px; height: 28px; }
+
+    /* Пиксельный 2D канвас глаз (чистый 2D, никаких теней и шторок) */
+    canvas.px-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* --- ЗАСТАВКА --- */
     .splash {
       position: fixed; inset: 0; background: #ffffff; z-index: 200;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
     }
     .splash-title {
-      font-size: 32px; font-weight: 800; letter-spacing: -0.04em; color: var(--ink);
+      font-size: 30px; font-weight: 800; letter-spacing: -0.04em; color: var(--ink);
       opacity: 0; transform: translateY(10px);
     }
 
-    /* --- REAL-TIME УВЕДОМЛЕНИЕ СВЕРХУ С ЭМОЦИЕЙ РОБОТА (2 СЕК) --- */
+    /* --- REAL-TIME УВЕДОМЛЕНИЕ СВЕРХУ С ПИКСЕЛЬНЫМИ ГЛАЗАМИ --- */
     .rt-banner {
-      position: fixed; top: 12px; left: 50%; transform: translate(-50%, -120px);
-      background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(22px) saturate(180%);
-      -webkit-backdrop-filter: blur(22px) saturate(180%);
+      position: fixed; top: 12px; left: 50%; transform: translate(-50%, -130px);
+      background: rgba(255, 255, 255, 0.86); backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
       border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 999px;
       padding: 8px 18px 8px 12px; display: flex; align-items: center; gap: 10px;
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.12); z-index: 150; max-width: 92vw;
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.13); z-index: 150; max-width: 92vw;
     }
     .rt-text { font-size: 13.5px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* --- ОБЩИЕ ГЛАЗА ИНОПЛАНЕТЯНИНА (ЦВЕТ COZMO) --- */
-    .alien-eyes-svg { overflow: visible; filter: drop-shadow(0 8px 22px var(--eye-glow)); transition: filter 0.35s ease; }
-    .eye-fill { fill: var(--eye); transition: fill 0.35s ease; }
-    .eye-lid { fill: #ffffff; }
-
-    /* --- ЭКРАН 1: ГЛАВНАЯ (ГЛАЗА НА ВЕСЬ ЭКРАН) --- */
+    /* --- ЭКРАНЫ --- */
     .screen { display: none; min-height: 100vh; width: 100%; position: relative; }
     .screen.active { display: flex; flex-direction: column; }
 
+    /* --- ЭКРАН 1: ГЛАВНАЯ (2D ПИКСЕЛЬНЫЕ ГЛАЗА НА ВЕСЬ ЭКРАН) --- */
     .home-screen {
-      align-items: center; justify-content: center; padding: 20px 20px 140px; user-select: none;
+      align-items: center; justify-content: center; padding: 20px 16px 140px; user-select: none;
     }
     .home-eyes-wrap {
-      width: min(88vw, 340px); cursor: pointer; display: flex; flex-direction: column; align-items: center;
+      width: 100%; max-width: 380px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
     }
     .home-emotion-hint {
-      margin-top: 26px; font-size: 14px; font-weight: 500; color: var(--subtle);
-      min-height: 20px; text-align: center; transition: opacity 0.2s;
+      margin-top: 22px; font-size: 13.5px; font-weight: 600; color: var(--subtle);
+      min-height: 20px; text-align: center;
     }
 
-    /* Нижняя панель главной: стиль Apple Glass */
     .home-controls {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-      padding: 12px 18px calc(18px + env(safe-area-inset-bottom));
-      display: flex; align-items: center; justify-content: center; gap: 12px; pointer-events: none;
+      padding: 12px 16px calc(18px + env(safe-area-inset-bottom));
+      display: flex; align-items: center; justify-content: center; gap: 10px; pointer-events: none;
     }
     .glass-pill-btn {
       pointer-events: auto;
-      background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(26px) saturate(190%);
-      -webkit-backdrop-filter: blur(26px) saturate(190%);
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.66);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
       border-radius: 24px; cursor: pointer; color: var(--ink);
-      display: flex; align-items: center; gap: 11px; padding: 13px 20px;
+      display: flex; align-items: center; gap: 11px; padding: 12px 18px;
       transition: transform 0.14s ease, background 0.15s ease;
     }
-    .glass-pill-btn:active { transform: scale(0.95); background: rgba(245, 247, 250, 0.9); }
-    .qr-scan-main { flex: 1; max-width: 245px; justify-content: center; }
+    .glass-pill-btn:active { transform: scale(0.95); }
+    .qr-scan-main { flex: 1; max-width: 248px; justify-content: center; }
     .qr-icon-badge {
-      width: 36px; height: 36px; border-radius: 12px; background: var(--ink); color: #fff;
+      width: 38px; height: 38px; border-radius: 13px; background: var(--ink); color: #fff;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .btn-txt-col { text-align: left; }
-    .btn-txt-title { font-size: 14px; font-weight: 700; line-height: 1.15; }
-    .btn-txt-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .btn-txt-title { font-size: 14px; font-weight: 700; line-height: 1.15; text-align: left; }
+    .btn-txt-sub { font-size: 11px; color: var(--muted); margin-top: 2px; text-align: left; }
 
-    /* --- ЭКРАН 2: ОПЛАТА (3D ВЫДАВЛЕННЫЙ БЕЛЫЙ КРУГ + ПЕРЕЛИВАЮЩАЯСЯ ПОДСВЕТКА) --- */
+    /* --- ЭКРАН 2: ТЕНЕВОЙ АНИМАЦИОННЫЙ 3D-КРУГ ОПЛАТЫ --- */
     .pay-screen {
-      align-items: center; justify-content: space-between; padding: 26px 20px 32px; overflow: hidden;
+      align-items: center; justify-content: space-between; padding: 20px 20px 28px; overflow: hidden;
+      perspective: 900px;
     }
     .pay-top-eyes {
-      width: 154px; transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); z-index: 5;
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); z-index: 6;
     }
     .pay-top-eyes.fullscreen-energy {
-      transform: translateY(25vh) scale(2.05);
+      transform: translateY(25vh) scale(1.95);
     }
     .energy-layer {
       position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; display: none;
     }
     .energy-ring {
-      position: absolute; top: 44%; left: 50%; width: 60px; height: 60px;
+      position: absolute; top: 44%; left: 50%; width: 64px; height: 64px;
       border-radius: 50%; border: 3px solid var(--eye); transform: translate(-50%, -50%); opacity: 0;
     }
-    .energy-dollar {
+    .energy-token {
       position: absolute; top: 44%; left: 50%; font-weight: 800; font-size: 22px;
-      color: var(--eye-deep); text-shadow: 0 2px 12px var(--eye-glow); user-select: none;
+      color: var(--eye-deep); user-select: none;
     }
 
-    /* 3D Neumorphic Белый Круг с переливающимся ореолом */
     .orb-stage {
-      position: relative; width: 292px; height: 292px; display: flex; align-items: center; justify-content: center;
-      margin: auto 0; z-index: 3;
+      position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center;
+      margin: auto 0; z-index: 3; transform-style: preserve-3d;
     }
-    .orb-glow {
-      position: absolute; inset: -14px; border-radius: 50%;
-      background: conic-gradient(from 0deg, #00e1ff, #6366f1, #ec4899, #f59e0b, #10b981, #00e1ff);
-      filter: blur(22px); opacity: 0.72; animation: spinGlow 4.5s linear infinite;
+    /* Пульсирующая мягкая тень под 3D-кругом */
+    .orb-floor-shadow {
+      position: absolute; bottom: -26px; width: 210px; height: 34px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(11, 18, 32, 0.22) 0%, rgba(11, 18, 32, 0.06) 52%, transparent 75%);
+      filter: blur(8px); animation: shadowPulse 3.4s ease-in-out infinite;
+    }
+    @keyframes shadowPulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(0.86); opacity: 0.55; }
+    }
+
+    /* Двойная переливающаяся подсветка */
+    .orb-glow, .orb-glow-2 {
+      position: absolute; inset: -16px; border-radius: 50%;
+      background: conic-gradient(from 0deg, #00e5ff, #6366f1, #ec4899, #f59e0b, #10b981, #00e5ff);
+      filter: blur(26px); opacity: 0.72; animation: spinGlow 4.2s linear infinite;
       transition: background 0.45s ease, opacity 0.4s ease;
     }
-    .orb-glow.state-success {
-      background: conic-gradient(from 0deg, #10b981, #34d399, #059669, #6ee7b7, #10b981);
-      opacity: 0.9; filter: blur(26px);
+    .orb-glow-2 {
+      inset: -6px; filter: blur(12px); opacity: 0.42; animation: spinGlow 6.5s linear infinite reverse;
     }
-    .orb-glow.state-error {
+    .orb-glow.state-success, .orb-glow-2.state-success {
+      background: conic-gradient(from 0deg, #10b981, #34d399, #059669, #6ee7b7, #10b981);
+      opacity: 0.92;
+    }
+    .orb-glow.state-error, .orb-glow-2.state-error {
       background: conic-gradient(from 0deg, #ef4444, #f87171, #dc2626, #fca5a5, #ef4444);
-      opacity: 0.9; filter: blur(26px);
+      opacity: 0.92;
     }
     @keyframes spinGlow { to { transform: rotate(360deg); } }
 
+    /* Глубокий скульптурный выдавленный белый 3D-круг */
     .orb-circle {
-      position: relative; width: 274px; height: 274px; border-radius: 50%;
-      background: linear-gradient(145deg, #ffffff 0%, #f1f4f9 100%);
+      position: relative; width: 278px; height: 278px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 24%, #ffffff 0%, #f5f7fb 58%, #e9eef6 100%);
       box-shadow:
-        16px 16px 34px rgba(15, 23, 42, 0.11),
-        -14px -14px 30px rgba(255, 255, 255, 0.95),
-        inset 3px 3px 10px rgba(255, 255, 255, 0.95),
-        inset -4px -4px 12px rgba(15, 23, 42, 0.05);
-      border: 1.5px solid rgba(255, 255, 255, 0.9);
+        0 28px 54px -10px rgba(11, 18, 32, 0.22),
+        0 10px 22px -6px rgba(11, 18, 32, 0.14),
+        -16px -16px 34px rgba(255, 255, 255, 0.98),
+        inset 6px 6px 16px rgba(255, 255, 255, 0.95),
+        inset -10px -12px 24px rgba(15, 23, 42, 0.11);
+      border: 2px solid rgba(255, 255, 255, 0.95);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 26px; text-align: center;
+      animation: orbFloat 3.4s ease-in-out infinite;
+    }
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0px) rotateX(2deg); }
+      50% { transform: translateY(-9px) rotateX(-2deg); }
     }
     .orb-badge {
       font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-      color: var(--muted); background: rgba(15, 23, 42, 0.05); padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;
+      color: var(--muted); background: rgba(15, 23, 42, 0.06); padding: 4px 11px; border-radius: 999px; margin-bottom: 8px;
     }
-    .orb-title { font-size: 16px; font-weight: 700; line-height: 1.2; max-width: 210px; margin-bottom: 8px; }
-    .orb-amount { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+    .orb-title { font-size: 16px; font-weight: 700; line-height: 1.2; max-width: 212px; margin-bottom: 8px; }
+    .orb-amount { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
     .orb-unit { font-size: 16px; font-weight: 700; color: var(--eye-deep); margin-left: 3px; }
     .orb-input {
-      width: 120px; text-align: center; font-size: 30px; font-weight: 800; border: none;
-      border-bottom: 2px solid var(--border); background: transparent; outline: none; color: var(--ink); padding: 2px 0;
+      width: 120px; text-align: center; font-size: 32px; font-weight: 800; border: none;
+      border-bottom: 2px solid rgba(15, 23, 42, 0.15); background: transparent; outline: none; color: var(--ink); padding: 2px 0;
     }
     .orb-sub { font-size: 12px; color: var(--muted); margin-top: 8px; }
     .orb-result-icon { display: none; flex-direction: column; align-items: center; gap: 10px; }
+    .pay-footer { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 8px; z-index: 6; }
 
-    .pay-footer { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 8px; z-index: 5; }
-
-    /* --- ЭКРАН 3: МЕНЮ (КОШЕЛЁК, QR, ПРОЕКТЫ) --- */
+    /* --- ЭКРАН 3: МЕНЮ --- */
     .menu-screen { padding-bottom: 104px; }
     .topbar {
-      display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; padding: 11px 16px;
       border-bottom: 1px solid var(--border); background: rgba(255, 255, 255, 0.78);
       backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
       position: sticky; top: 0; z-index: 25;
@@ -184,10 +210,10 @@
     .top-actions { display: flex; align-items: center; gap: 7px; }
     .round-btn {
       width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
-      background: rgba(255,255,255,0.85); color: var(--ink); display: inline-flex;
+      background: rgba(255,255,255,0.88); color: var(--ink); display: inline-flex;
       align-items: center; justify-content: center; cursor: pointer;
     }
-    .color-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--eye); box-shadow: 0 0 8px var(--eye-glow); }
+    .color-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--eye); }
     .bal-chip {
       height: 34px; padding: 0 12px; border-radius: 999px; background: var(--surface);
       border: 1px solid var(--border); font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;
@@ -195,7 +221,6 @@
 
     .subview { display: none; padding: 16px; max-width: 440px; width: 100%; margin: 0 auto; }
     .subview.active { display: block; }
-
     .card {
       background: #fff; border: 1px solid var(--border); border-radius: 22px; padding: 18px;
       margin-bottom: 14px; box-shadow: 0 4px 18px rgba(15, 23, 42, 0.035);
@@ -212,17 +237,17 @@
     .b-approved { color: #047857; background: #d1fae5; }
     .b-rejected { color: #b91c1c; background: #fee2e2; }
 
-    /* Apple-style прозрачная нижняя панель с блюром */
+    /* Прозрачная нижняя панель Apple Glass */
     .apple-dock-wrap {
       position: fixed; bottom: 0; left: 0; right: 0; padding: 0 16px calc(14px + env(safe-area-inset-bottom));
       display: flex; justify-content: center; pointer-events: none; z-index: 35;
     }
     .apple-dock {
       pointer-events: auto; width: 100%; max-width: 396px;
-      background: rgba(255, 255, 255, 0.58);
-      backdrop-filter: blur(28px) saturate(200%);
-      -webkit-backdrop-filter: blur(28px) saturate(200%);
-      border: 1px solid rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.56);
+      backdrop-filter: blur(28px) saturate(210%);
+      -webkit-backdrop-filter: blur(28px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.78);
       box-shadow: 0 14px 38px rgba(15, 23, 42, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.85);
       border-radius: 26px; display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px;
     }
@@ -234,44 +259,27 @@
     .dock-btn.active { background: rgba(15, 23, 42, 0.08); color: var(--ink); }
     .dock-btn svg { width: 20px; height: 20px; stroke-width: 2; }
 
-    /* --- ЭКРАН 4: ТЕХПОДДЕРЖКА (ГОЛОСОВОЙ И ТЕКСТОВЫЙ ИИ-РОБОТ) --- */
-    .support-screen {
-      height: 100vh; overflow: hidden; background: #ffffff;
-    }
+    /* --- ЭКРАН 4: ТЕХПОДДЕРЖКА (ПИКСЕЛЬНОЕ ЛИЦО + РОТ + GROQ) --- */
+    .support-screen { height: 100vh; overflow: hidden; background: #ffffff; }
     .sup-top {
       display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
-      border-bottom: 1px solid var(--border); z-index: 10; background: rgba(255,255,255,0.85); backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.86); backdrop-filter: blur(18px); z-index: 10;
     }
     .sup-face-stage {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 16px; cursor: pointer; transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1); user-select: none;
+      padding: 16px; cursor: pointer; transition: all 0.42s cubic-bezier(0.22, 1, 0.36, 1); user-select: none;
     }
-    .sup-face-stage.compact {
-      flex: 0 0 auto; padding: 10px 16px 6px; border-bottom: 1px solid var(--border);
-    }
-    .sup-face-svg {
-      width: min(82vw, 300px); transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .sup-face-stage.compact .sup-face-svg { width: 126px; }
-    .sup-status {
-      margin-top: 14px; font-size: 14px; font-weight: 600; color: var(--muted); text-align: center;
-    }
+    .sup-face-stage.compact { flex: 0 0 auto; padding: 8px 16px 6px; border-bottom: 1px solid var(--border); }
+    .sup-face-stage.compact canvas { transform: scale(0.5); margin: -42px 0 -36px; }
+    .sup-face-stage canvas { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), margin 0.42s; }
+    .sup-status { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--muted); text-align: center; }
     .sup-face-stage.compact .sup-status { margin-top: 4px; font-size: 12px; }
 
-    .sup-voice-bar {
-      padding: 16px 20px calc(22px + env(safe-area-inset-bottom));
-      display: flex; justify-content: center; gap: 10px;
-    }
-    .sup-chat-wrap {
-      display: none; flex: 1; flex-direction: column; overflow: hidden;
-    }
+    .sup-voice-bar { padding: 14px 20px calc(22px + env(safe-area-inset-bottom)); display: flex; justify-content: center; }
+    .sup-chat-wrap { display: none; flex: 1; flex-direction: column; overflow: hidden; }
     .sup-chat-wrap.open { display: flex; }
-    .sup-messages {
-      flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
-    }
-    .msg-bubble {
-      max-width: 82%; padding: 11px 14px; border-radius: 18px; font-size: 14px; line-height: 1.45;
-    }
+    .sup-messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .msg-bubble { max-width: 82%; padding: 11px 14px; border-radius: 18px; font-size: 14px; line-height: 1.45; }
     .msg-user { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 5px; }
     .msg-bot { align-self: flex-start; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
     .sup-input-bar {
@@ -301,14 +309,17 @@
     .input:focus { border-color: var(--ink); }
 
     .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 11px; }
-    .chip { padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; }
+    .chip {
+      padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    }
     .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
     .tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 11px; }
     .tier-card { padding: 10px; border-radius: 13px; border: 1.5px solid var(--border); background: #fff; cursor: pointer; text-align: left; }
     .tier-card.active { border-color: var(--ink); background: var(--surface); }
 
-    .owner-box { background: #fff8e6; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+    .owner-box { background: #fff9eb; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
     .owner-link {
       display: flex; align-items: center; justify-content: space-between; padding: 9px 12px;
       background: #fff; border: 1px solid #fcd34d; border-radius: 10px; text-decoration: none; color: var(--ink); margin-top: 8px;
@@ -333,1045 +344,14 @@
   </style>
 </head>
 <body>
-  <!-- ЗАСТАВКА -->
-  <div class="splash" id="splash">
-    <svg class="alien-eyes-svg" width="180" viewBox="0 0 260 120" fill="none" id="splashEyes">
-      <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 C21 60 22 51 22 44 Z"/>
-      <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 C239 60 238 51 238 44 Z"/>
-    </svg>
-    <div class="splash-title" id="splashTitle">RoboPay</div>
-  </div>
-
-  <!-- REAL-TIME УВЕДОМЛЕНИЕ СВЕРХУ С ЭМОЦИЕЙ РОБОТА -->
-  <div class="rt-banner" id="rtBanner">
-    <svg width="42" viewBox="0 0 260 120" fill="none">
-      <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 Z"/>
-      <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 Z"/>
-      <path id="rtHappyArc" fill="#ffffff" d="M10 74 Q74 44 128 78 L128 120 L10 120 Z M132 78 Q186 44 250 74 L250 120 L132 120 Z"/>
-    </svg>
-    <span class="rt-text" id="rtText">Успешно!</span>
-  </div>
-
-  <!-- ЭКРАН 1: ГЛАВНАЯ (ГЛАЗА РОБОТА НА ВЕСЬ ЭКРАН) -->
-  <section class="screen home-screen active" id="screenHome">
-    <div class="home-eyes-wrap" id="homeEyesBox">
-      <svg class="alien-eyes-svg" id="homeEyesSvg" viewBox="0 0 260 120" fill="none" style="width:100%;">
-        <g id="homeEyesMove">
-          <!-- Левый глаз -->
-          <g id="hEyeL">
-            <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 C21 60 22 51 22 44 Z"/>
-            <ellipse cx="64" cy="44" rx="14" ry="7" transform="rotate(-14 64 44)" fill="rgba(255,255,255,0.32)"/>
-            <rect class="eye-lid" id="hTopL" x="5" y="-56" width="124" height="62" rx="18"/>
-            <path class="eye-lid" id="hBotL" d="M5 122 Q68 92 128 122 L128 178 L5 178 Z"/>
-          </g>
-          <!-- Правый глаз -->
-          <g id="hEyeR">
-            <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 C239 60 238 51 238 44 Z"/>
-            <ellipse cx="196" cy="44" rx="14" ry="7" transform="rotate(14 196 44)" fill="rgba(255,255,255,0.32)"/>
-            <rect class="eye-lid" id="hTopR" x="131" y="-56" width="124" height="62" rx="18"/>
-            <path class="eye-lid" id="hBotR" d="M132 122 Q192 92 255 122 L255 178 L132 178 Z"/>
-          </g>
-        </g>
-      </svg>
-      <div class="home-emotion-hint" id="homeHint">Коснись глаз или отсканируй QR</div>
-    </div>
-
-    <div class="home-controls">
-      <button class="glass-pill-btn qr-scan-main" id="homeScanBtn">
-        <div class="qr-icon-badge">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-        </div>
-        <div class="btn-txt-col">
-          <div class="btn-txt-title">Сканировать QR</div>
-          <div class="btn-txt-sub">Оплата и переводы</div>
-        </div>
-      </button>
-      <button class="glass-pill-btn" id="homeMenuBtn" style="padding:15px 20px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/></svg>
-        <span style="font-size:14px;font-weight:700;">Меню</span>
-      </button>
-    </div>
-  </section>
-
-  <!-- ЭКРАН 2: 3D БЕЛЫЙ КРУГ ОПЛАТЫ + ЭНЕРГИЯ С ДОЛЛАРАМИ -->
-  <section class="screen pay-screen" id="screenPay">
-    <div class="energy-layer" id="energyLayer"></div>
-
-    <!-- Уменьшенные глаза сверху (увеличиваются на весь экран на 2 сек при оплате) -->
-    <div class="pay-top-eyes" id="payTopEyes">
-      <svg class="alien-eyes-svg" viewBox="0 0 260 120" fill="none" style="width:100%;">
-        <g id="pEyeL">
-          <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 Z"/>
-          <rect class="eye-lid" id="pTopL" x="5" y="-56" width="124" height="62" rx="18"/>
-          <path class="eye-lid" id="pBotL" d="M5 122 Q68 92 128 122 L128 178 L5 178 Z"/>
-        </g>
-        <g id="pEyeR">
-          <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 Z"/>
-          <rect class="eye-lid" id="pTopR" x="131" y="-56" width="124" height="62" rx="18"/>
-          <path class="eye-lid" id="pBotR" d="M132 122 Q192 92 255 122 L255 178 L132 178 Z"/>
-        </g>
-      </svg>
-    </div>
-
-    <!-- 3D Белый выдавленный круг с переливающейся подсветкой -->
-    <div class="orb-stage" id="orbStage">
-      <div class="orb-glow" id="orbGlow"></div>
-      <div class="orb-circle" id="orbCircle">
-        <!-- Содержимое до оплаты -->
-        <div id="orbContent">
-          <div class="orb-badge" id="payBadge">СЧЁТ</div>
-          <div class="orb-title" id="payTitle">Услуга</div>
-          <div id="payFixedAmt" class="tabular"><span class="orb-amount" id="payAmtNum">50</span><span class="orb-unit">RP</span></div>
-          <div id="payCustomAmtWrap" style="display:none;align-items:baseline;justify-content:center;gap:4px;">
-            <input class="orb-input tabular" id="payCustomAmt" type="number" min="1" placeholder="50"/>
-            <span class="orb-unit">RP</span>
-          </div>
-          <div class="orb-sub tabular" id="payBalSub">Баланс: 0 RP</div>
-        </div>
-
-        <!-- Результат (зелёная галочка или красный крестик) -->
-        <div class="orb-result-icon" id="orbResult">
-          <svg id="orbOkSvg" style="display:none;" width="86" height="86" viewBox="0 0 86 86" fill="none">
-            <path id="orbOkPath" d="M20 45 L37 62 L67 26" stroke="#10b981" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="90" stroke-dashoffset="90"/>
-          </svg>
-          <svg id="orbErrSvg" style="display:none;" width="86" height="86" viewBox="0 0 86 86" fill="none">
-            <path id="orbErrP1" d="M24 24 L62 62" stroke="#ef4444" stroke-width="7.5" stroke-linecap="round" stroke-dasharray="60" stroke-dashoffset="60"/>
-            <path id="orbErrP2" d="M62 24 L24 62" stroke="#ef4444" stroke-width="7.5" stroke-linecap="round" stroke-dasharray="60" stroke-dashoffset="60"/>
-          </svg>
-          <div style="font-size:15px;font-weight:700;" id="orbResTitle">Оплачено!</div>
-          <div style="font-size:12px;color:var(--muted);" id="orbResSub">Сигнал отправлен</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="pay-footer" id="payFooter">
-      <button class="btn btn-primary" id="payConfirmBtn" style="padding:15px;font-size:15px;border-radius:18px;">Оплатить</button>
-      <button class="btn btn-ghost" id="payCancelBtn">Отменить</button>
-    </div>
-  </section>
-
-  <!-- ЭКРАН 3: МЕНЮ (КОШЕЛЁК, QR, ПОДЕЛИТЬСЯ, СМЕНА ЦВЕТА) -->
-  <section class="screen menu-screen" id="screenMenu">
-    <header class="topbar">
-      <div class="brand">
-        <svg width="34" viewBox="0 0 260 120" fill="none">
-          <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 Z"/>
-          <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 Z"/>
-        </svg>
-        <span>RoboPay</span>
-      </div>
-      <div class="top-actions">
-        <button class="round-btn" id="colorCycleBtn" title="Сменить цвет робота"><span class="color-dot"></span></button>
-        <button class="round-btn" id="soundBtn" title="Звук">
-          <svg id="sndOn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-          <svg id="sndOff" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-        </button>
-        <div class="bal-chip tabular"><span id="menuBalChip">0</span> RP</div>
-      </div>
-    </header>
-
-    <!-- Подвкладка: Кошелёк -->
-    <div class="subview active" id="subWallet">
-      <div class="card">
-        <div style="font-size:13px;color:var(--muted);font-weight:500;">Баланс RoboPay</div>
-        <div class="hero-bal tabular"><span id="walletBalBig">0</span> <span style="font-size:20px;color:var(--eye-deep);">RP</span></div>
-        <div class="row-3">
-          <button class="btn btn-primary btn-sm" id="openTopupBtn">Пополнить</button>
-          <button class="btn btn-secondary btn-sm" id="openWithdrawBtn">Вывести ⭐</button>
-          <button class="btn btn-secondary btn-sm" id="openTransferBtn">Перевести</button>
-        </div>
-      </div>
-
-      <div class="sec-title">Заявки на пополнение и вывод</div>
-      <div class="tx-list" id="reqList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Заявок пока нет</div></div>
-
-      <div class="sec-title">История операций</div>
-      <div class="tx-list" id="histList"><div class="card-soft" style="font-size:13px;color:var(--muted);text-align:center;">Операций пока нет</div></div>
-    </div>
-
-    <!-- Подвкладка: QR и Счета + Поделиться QR -->
-    <div class="subview" id="subQr">
-      <div class="card">
-        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Мой QR для приёма RP</div>
-        <div style="font-size:13px;color:var(--muted);">Покажите или отправьте этот QR — перевод откроется в 3D-круге.</div>
-        <div class="qr-wrap">
-          <div id="myQrBox"></div>
-          <div class="mono" style="margin-top:10px;" id="myIdLbl">ID: —</div>
-        </div>
-        <div class="row-2">
-          <button class="btn btn-primary btn-sm" id="shareMyQrBtn">Поделиться QR</button>
-          <button class="btn btn-secondary btn-sm" id="copyIdBtn">Скопировать ID</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Создать QR-счёт проекта</div>
-        <div id="noProjNote" style="display:none;font-size:13px;color:var(--muted);">Создайте проект в боте («📦 Мои проекты»), чтобы выставлять счета.</div>
-        <div id="invBox">
-          <div class="field"><label>Проект</label><select class="select" id="invProj"></select></div>
-          <div class="field"><label>Услуга</label><input class="input" id="invTitle" placeholder="VIP-доступ" maxlength="48"/></div>
-          <div class="field"><label>Сумма (RP)</label><input class="input tabular" id="invAmt" type="number" min="1" placeholder="50"/></div>
-          <button class="btn btn-primary" id="createInvBtn">Сгенерировать QR-счёт</button>
-          <div id="invRes" style="display:none;margin-top:14px;">
-            <div class="qr-wrap"><div id="invQrBox"></div></div>
-            <div class="row-2">
-              <button class="btn btn-primary btn-sm" id="shareInvQrBtn">Поделиться QR</button>
-              <button class="btn btn-secondary btn-sm" id="copyInvBtn">Ссылка</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Прозрачная нижняя панель в стиле Apple Glass -->
-    <div class="apple-dock-wrap">
-      <nav class="apple-dock">
-        <button class="dock-btn" id="dockHome">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="9" cy="12" r="2.2"/><circle cx="15" cy="12" r="2.2"/><rect x="2" y="5" width="20" height="14" rx="7"/></svg>
-          Глаза
-        </button>
-        <button class="dock-btn active" data-sub="Wallet">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
-          Кошелёк
-        </button>
-        <button class="dock-btn" data-sub="Qr">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v7h-6"/></svg>
-          QR
-        </button>
-        <button class="dock-btn" id="dockSupport">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Помощь
-        </button>
-      </nav>
-    </div>
-  </section>
-
-  <!-- ЭКРАН 4: ТЕХПОДДЕРЖКА (ИИ-РОБОТ С ГЛАЗАМИ, РТОМ, ГОЛОСОМ И ЧАТОМ GROQ) -->
-  <section class="screen support-screen" id="screenSupport">
-    <div class="sup-top">
-      <button class="round-btn" id="supBackBtn" title="Назад">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span style="font-size:15px;font-weight:700;">Техподдержка RoboPay AI</span>
-      <button class="round-btn" id="supModeToggle" title="Чат / Голос">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </button>
-    </div>
-
-    <div class="sup-face-stage" id="supFaceStage">
-      <svg class="alien-eyes-svg sup-face-svg" viewBox="0 0 260 170" fill="none">
-        <!-- Глаза -->
-        <g id="sEyeL">
-          <path class="eye-fill" d="M22 44 C22 16 70 12 104 34 C122 46 123 76 102 90 C78 106 34 96 24 68 Z"/>
-          <rect class="eye-lid" id="sTopL" x="5" y="-56" width="124" height="62" rx="18"/>
-          <path class="eye-lid" id="sBotL" d="M5 122 Q68 92 128 122 L128 178 L5 178 Z"/>
-        </g>
-        <g id="sEyeR">
-          <path class="eye-fill" d="M238 44 C238 16 190 12 156 34 C138 46 137 76 158 90 C182 106 226 96 236 68 Z"/>
-          <rect class="eye-lid" id="sTopR" x="131" y="-56" width="124" height="62" rx="18"/>
-          <path class="eye-lid" id="sBotR" d="M132 122 Q192 92 255 122 L255 178 L132 178 Z"/>
-        </g>
-        <!-- Анимированный рот робота (5 живых светодиодных полос) -->
-        <g id="supMouth" transform="translate(88, 126)">
-          <rect class="eye-fill mouth-bar" x="0" y="10" width="10" height="10" rx="5"/>
-          <rect class="eye-fill mouth-bar" x="18" y="6" width="10" height="18" rx="5"/>
-          <rect class="eye-fill mouth-bar" x="36" y="4" width="12" height="22" rx="6"/>
-          <rect class="eye-fill mouth-bar" x="56" y="6" width="10" height="18" rx="5"/>
-          <rect class="eye-fill mouth-bar" x="74" y="10" width="10" height="10" rx="5"/>
-        </g>
-      </svg>
-      <div class="sup-status" id="supStatus">Нажми на экран и задай вопрос голосом</div>
-    </div>
-
-    <!-- Кнопка переключения в чат в голосовом режиме -->
-    <div class="sup-voice-bar" id="supVoiceBar">
-      <button class="glass-pill-btn" id="openTextChatBtn" style="padding:12px 22px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span style="font-size:14px;font-weight:700;">Написать текстом</span>
-      </button>
-    </div>
-
-    <!-- Текстовый чат с Groq -->
-    <div class="sup-chat-wrap" id="supChatWrap">
-      <div class="sup-messages" id="supMessages">
-        <div class="msg-bubble msg-bot">Привет! Я робот поддержки RoboPay. Спроси меня про пополнение, вывод подарком, QR или API — отвечу мгновенно.</div>
-      </div>
-      <div class="sup-input-bar">
-        <input class="input" id="supTextInput" placeholder="Напишите вопрос..." style="border-radius:999px;padding:11px 16px;"/>
-        <button class="btn btn-primary" id="supSendBtn" style="width:auto;padding:0 18px;border-radius:999px;">↑</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- МОДАЛКИ: ПОПОЛНЕНИЕ, ВЫВОД, ПЕРЕВОД (С КРЕСТИКОМ) -->
-  <div class="modal-backdrop" id="topupModal">
-    <div class="modal-box">
-      <div class="modal-head">
-        <div style="font-size:18px;font-weight:700;">Пополнение подарком</div>
-        <button class="modal-close" data-close="topupModal">&times;</button>
-      </div>
-      <div class="owner-box">
-        <div style="font-size:12.5px;color:#78350f;line-height:1.4;">1. Отправьте Telegram-подарок владельцу по ссылке (до <strong>100 ⭐</strong>, курс 1:1):</div>
-        <a href="#" class="owner-link" id="ownerGiftLink">
-          <div>
-            <div style="font-size:15px;font-weight:700;color:#0284c7;text-decoration:underline;" id="ownerNickTxt">@owner</div>
-            <div style="font-size:11px;color:var(--muted);" id="ownerUrlTxt">https://t.me/owner</div>
-          </div>
-          <span style="font-size:20px;">🎁</span>
-        </a>
-      </div>
-      <div class="chips" id="topupChips">
-        <button class="chip" data-amt="15">15 ⭐</button>
-        <button class="chip" data-amt="25">25 ⭐</button>
-        <button class="chip" data-amt="50">50 ⭐</button>
-        <button class="chip" data-amt="100">100 ⭐</button>
-      </div>
-      <div class="field"><input class="input tabular" id="topAmt" type="number" min="1" max="100" placeholder="Сумма от 1 до 100 ⭐"/></div>
-      <div class="field"><input class="input" id="topComm" placeholder="Комментарий (какой подарок отправили)" maxlength="200"/></div>
-      <button class="btn btn-primary" id="submitTopupBtn">Я отправил подарок — подать заявку</button>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="withdrawModal">
-    <div class="modal-box">
-      <div class="modal-head">
-        <div style="font-size:18px;font-weight:700;">Вывод в Telegram Stars</div>
-        <button class="modal-close" data-close="withdrawModal">&times;</button>
-      </div>
-      <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">Владелец отправит подарок после одобрения (комиссия <strong id="wdrFeePct">20%</strong>).</div>
-      <div class="tier-grid" id="tierGrid"></div>
-      <div class="card-soft tabular" id="wdrSummary" style="font-size:12.5px;line-height:1.45;">Выберите номинал подарка</div>
-      <div class="field"><input class="input" id="wdrNote" placeholder="Комментарий (необязательно)" maxlength="120"/></div>
-      <button class="btn btn-primary" id="submitWdrBtn" disabled>Отправить заявку на вывод</button>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="transferModal">
-    <div class="modal-box">
-      <div class="modal-head">
-        <div style="font-size:18px;font-weight:700;">Перевод RP</div>
-        <button class="modal-close" data-close="transferModal">&times;</button>
-      </div>
-      <div class="field"><label>Telegram ID получателя</label><input class="input tabular" id="trTo" type="number" placeholder="123456789"/></div>
-      <div class="field"><label>Сумма списания (RP)</label><input class="input tabular" id="trAmt" type="number" min="1" placeholder="50"/></div>
-      <div class="card-soft tabular" id="trPreview" style="font-size:12.5px;color:var(--muted);">Комиссия: 5%</div>
-      <div class="field"><input class="input" id="trComm" placeholder="Комментарий" maxlength="120"/></div>
-      <button class="btn btn-primary" id="submitTrBtn">Перевести</button>
-    </div>
-  </div>
-
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#ffffff"); tg.setBackgroundColor("#ffffff"); }
-
-    // --- ПАЛИТРЫ ЦВЕТОВ РОБОТА ---
-    const THEMES = [
-      { name: "Cozmo Cyan", eye: "#00e1ff", deep: "#00a9cc", glow: "rgba(0,225,255,0.45)" },
-      { name: "Cobalt", eye: "#2563eb", deep: "#1d4ed8", glow: "rgba(37,99,235,0.4)" },
-      { name: "Emerald", eye: "#10b981", deep: "#059669", glow: "rgba(16,185,129,0.4)" },
-      { name: "Violet", eye: "#8b5cf6", deep: "#7c3aed", glow: "rgba(139,92,246,0.42)" },
-      { name: "Amber", eye: "#f59e0b", deep: "#d97706", glow: "rgba(245,158,11,0.42)" },
-      { name: "Rose", eye: "#ec4899", deep: "#db2777", glow: "rgba(236,72,153,0.42)" }
-    ];
-    let themeIdx = parseInt(localStorage.getItem("rp_theme") || "0", 10) % THEMES.length;
-    function applyTheme(i) {
-      themeIdx = i % THEMES.length;
-      localStorage.setItem("rp_theme", String(themeIdx));
-      const th = THEMES[themeIdx];
-      document.documentElement.style.setProperty("--eye", th.eye);
-      document.documentElement.style.setProperty("--eye-deep", th.deep);
-      document.documentElement.style.setProperty("--eye-glow", th.glow);
-    }
-    applyTheme(themeIdx);
-
-    // --- ЗВУКИ (WEB AUDIO API) ---
-    const Snd = (() => {
-      let ctx = null, on = localStorage.getItem("rp_snd") !== "off";
-      const ensure = () => {
-        if (!on) return null;
-        if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ctx = new AC(); }
-        if (ctx?.state === "suspended") ctx.resume().catch(() => {});
-        return ctx;
-      };
-      const t = (f, off, dur, type = "sine", vol = 0.065, slide = null) => {
-        const c = ensure(); if (!c) return;
-        const now = c.currentTime + off, o = c.createOscillator(), g = c.createGain();
-        o.type = type; o.frequency.setValueAtTime(f, now);
-        if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
-        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(vol, now + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-        o.connect(g); g.connect(c.destination); o.start(now); o.stop(now + dur + 0.02);
-      };
-      return {
-        on: () => on, unlock: ensure,
-        toggle() { on = !on; localStorage.setItem("rp_snd", on ? "on" : "off"); if (on) this.tap(); return on; },
-        tap: () => t(620, 0, 0.05, "sine", 0.04, 760),
-        happy: () => { t(523, 0, 0.11, "sine", 0.06); t(659, 0.07, 0.12, "sine", 0.06); t(880, 0.14, 0.22, "sine", 0.065); },
-        wink: () => t(480, 0, 0.11, "sine", 0.055, 820),
-        surprise: () => t(360, 0, 0.16, "triangle", 0.06, 860),
-        curious: () => { t(540, 0, 0.08, "sine", 0.05, 680); t(680, 0.09, 0.1, "sine", 0.05, 580); },
-        energy: () => {
-          t(220, 0, 1.8, "sine", 0.05, 880);
-          t(330, 0.15, 1.5, "triangle", 0.035, 1320);
-          t(660, 0.6, 0.12, "sine", 0.05); t(880, 1.0, 0.12, "sine", 0.05); t(1100, 1.4, 0.16, "sine", 0.055);
-        },
-        ok: () => { t(659, 0, 0.15, "sine", 0.075); t(988, 0.08, 0.34, "sine", 0.085); t(1318, 0.14, 0.36, "triangle", 0.045); },
-        err: () => { t(250, 0, 0.14, "triangle", 0.07, 170); t(180, 0.14, 0.22, "triangle", 0.07, 130); }
-      };
-    })();
-    window.addEventListener("pointerdown", () => Snd.unlock(), { once: true });
-
-    const syncSnd = () => {
-      document.getElementById("sndOn").style.display = Snd.on() ? "block" : "none";
-      document.getElementById("sndOff").style.display = Snd.on() ? "none" : "block";
-    };
-    syncSnd();
-    document.getElementById("soundBtn").addEventListener("click", () => { Snd.toggle(); syncSnd(); });
-    document.getElementById("colorCycleBtn").addEventListener("click", () => {
-      applyTheme(themeIdx + 1); Snd.tap(); showRtBanner(`Цвет: ${THEMES[themeIdx].name}`, "happy");
-    });
-
-    // --- СОСТОЯНИЕ ---
-    const INIT_DATA = tg?.initData || "";
-    const st = {
-      user: null, ownerUrl: "https://t.me/owner", botUser: "", commRate: 0.05, wdrRate: 0.20,
-      tiers: [], selectedGift: null, payCtx: null, lastInvLink: "", lastQrObj: null, myQrObj: null,
-      bal: 0, reacting: false, supHistory: [], supTextMode: false, supSpeaking: false
-    };
-
-    async function api(url, opts = {}) {
-      const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": INIT_DATA, ...(opts.headers || {}) } });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Ошибка запроса");
-      return data;
-    }
-
-    // --- АНИМАЦИОННОЕ REAL-TIME УВЕДОМЛЕНИЕ СВЕРХУ (2 СЕК) ---
-    let rtTimer = null;
-    function showRtBanner(text, emotion = "happy") {
-      const b = document.getElementById("rtBanner");
-      document.getElementById("rtText").textContent = text;
-      document.getElementById("rtHappyArc").style.display = emotion === "happy" ? "block" : "none";
-      if (emotion === "happy") Snd.ok(); else Snd.err();
-      clearTimeout(rtTimer);
-      gsap.killTweensOf(b);
-      gsap.to(b, { y: 0, duration: 0.36, ease: "back.out(1.6)" });
-      rtTimer = setTimeout(() => gsap.to(b, { y: -120, duration: 0.3, ease: "power2.in" }), 2100);
-    }
-
-    function setBalance(v) {
-      const o = { n: st.bal };
-      gsap.to(o, {
-        n: v, duration: 0.45, ease: "power2.out",
-        onUpdate: () => {
-          const r = Math.round(o.n);
-          document.getElementById("menuBalChip").textContent = r;
-          document.getElementById("walletBalBig").textContent = r;
-        },
-        onComplete: () => { st.bal = v; }
-      });
-    }
-
-    // --- ПЕРЕКЛЮЧЕНИЕ ЭКРАНОВ ---
-    function showScreen(id) {
-      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-      const el = document.getElementById(id);
-      el.classList.add("active");
-      gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.25 });
-    }
-    function switchSub(name) {
-      Snd.tap();
-      showScreen("screenMenu");
-      document.querySelectorAll(".subview").forEach(v => v.classList.remove("active"));
-      document.querySelectorAll(".dock-btn[data-sub]").forEach(b => b.classList.remove("active"));
-      document.getElementById(`sub${name}`).classList.add("active");
-      document.querySelector(`.dock-btn[data-sub="${name}"]`)?.classList.add("active");
-    }
-    document.getElementById("homeMenuBtn").addEventListener("click", () => switchSub("Wallet"));
-    document.getElementById("dockHome").addEventListener("click", () => { Snd.tap(); showScreen("screenHome"); });
-    document.getElementById("dockSupport").addEventListener("click", () => openSupportScreen());
-    document.querySelectorAll(".dock-btn[data-sub]").forEach(b => b.addEventListener("click", () => switchSub(b.dataset.sub)));
-
-    // --- ДВИЖОК ЭМОЦИЙ ГЛАЗ (COZMO-СТИЛЬ) ---
-    function setEyesEmotion(prefix, emotion) {
-      const tL = `#${prefix}TopL`, tR = `#${prefix}TopR`, bL = `#${prefix}BotL`, bR = `#${prefix}BotR`, eL = `#${prefix}EyeL`, eR = `#${prefix}EyeR`;
-      gsap.killTweensOf([tL, tR, bL, bR, eL, eR]);
-      gsap.to([tL, tR], { y: 0, rotation: 0, duration: 0.22 });
-      gsap.to([bL, bR], { y: 0, duration: 0.22 });
-      gsap.to([eL, eR], { scale: 1, y: 0, duration: 0.22 });
-
-      if (emotion === "happy" || emotion === "glee") {
-        gsap.to([bL, bR], { y: -44, duration: 0.24, ease: "back.out(2)" });
-        gsap.to([eL, eR], { y: -5, scale: 1.04, duration: 0.24 });
-      } else if (emotion === "sad") {
-        gsap.to(tL, { y: 34, rotation: -16, transformOrigin: "50% 50%", duration: 0.26 });
-        gsap.to(tR, { y: 34, rotation: 16, transformOrigin: "50% 50%", duration: 0.26 });
-      } else if (emotion === "focused") {
-        gsap.to(tL, { y: 28, rotation: 10, transformOrigin: "50% 50%", duration: 0.2 });
-        gsap.to(tR, { y: 28, rotation: -10, transformOrigin: "50% 50%", duration: 0.2 });
-      } else if (emotion === "surprised") {
-        gsap.to([eL, eR], { scale: 1.14, y: -6, duration: 0.2, ease: "back.out(2.5)" });
-      } else if (emotion === "wink") {
-        gsap.to(tR, { y: 58, duration: 0.14 });
-        gsap.to(bL, { y: -32, duration: 0.18 });
-      } else if (emotion === "skeptic") {
-        gsap.to(tL, { y: 26, duration: 0.2 });
-        gsap.to(tR, { y: 10, rotation: -10, transformOrigin: "50% 50%", duration: 0.2 });
-      } else if (emotion === "squint") {
-        gsap.to([tL, tR], { y: 34, duration: 0.2 });
-        gsap.to([bL, bR], { y: -32, duration: 0.2 });
-      }
-    }
-
-    // --- ГЛАВНАЯ СТРАНИЦА: ЖИВЫЕ ГЛАЗА, СЛЕЖЕНИЕ И АВТО-ОГЛЯДЫВАНИЕ ---
-    const hMove = document.getElementById("homeEyesMove");
-    const hHint = document.getElementById("homeHint");
-    const hX = gsap.quickTo(hMove, "x", { duration: 0.32, ease: "power3.out" });
-    const hY = gsap.quickTo(hMove, "y", { duration: 0.32, ease: "power3.out" });
-    let lastPointerTime = 0;
-
-    function trackHome(cx, cy) {
-      if (!document.getElementById("screenHome").classList.contains("active") || st.reacting) return;
-      lastPointerTime = Date.now();
-      const dx = Math.max(-1, Math.min(1, (cx - window.innerWidth / 2) / (window.innerWidth * 0.45)));
-      const dy = Math.max(-1, Math.min(1, (cy - window.innerHeight * 0.44) / (window.innerHeight * 0.45)));
-      hX(dx * 24); hY(dy * 16);
-    }
-    window.addEventListener("pointermove", e => trackHome(e.clientX, e.clientY));
-    window.addEventListener("touchmove", e => { if (e.touches[0]) trackHome(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-
-    // Автоматические живые взгляды влево-вправо и весёлые эмоции в покое
-    setInterval(() => {
-      if (!document.getElementById("screenHome").classList.contains("active") || st.reacting) return;
-      if (Date.now() - lastPointerTime < 2200) return;
-      const dirs = [[-22, -4], [22, -4], [0, -8], [-16, 6], [16, 6], [0, 0]];
-      const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
-      hX(dx); hY(dy);
-      if (Math.random() < 0.4) {
-        setEyesEmotion("h", Math.random() < 0.7 ? "happy" : "curious");
-        setTimeout(() => { if (!st.reacting) setEyesEmotion("h", "neutral"); }, 950);
-      }
-    }, 2200);
-
-    // Моргание на главной и в техподдержке
-    (function blinkAll() {
-      setTimeout(() => {
-        if (!st.reacting) {
-          ["h", "s"].forEach(p => {
-            gsap.timeline()
-              .to([`#${p}TopL`, `#${p}TopR`], { y: 58, duration: 0.08 })
-              .to([`#${p}TopL`, `#${p}TopR`], { y: 0, duration: 0.12 });
-          });
-        }
-        blinkAll();
-      }, 2600 + Math.random() * 2600);
-    })();
-
-    const HOME_EMOTIONS = [
-      ["happy", "Привет! Готов к оплате", () => Snd.happy()],
-      ["wink", "Подмигнул • Нажми QR внизу", () => Snd.wink()],
-      ["surprised", "Ого! Щекотно!", () => Snd.surprise()],
-      ["glee", "Отличное настроение!", () => Snd.happy()],
-      ["skeptic", "Хм, проверим баланс?", () => Snd.curious()],
-      ["squint", "Прищурился... вижу QR!", () => Snd.tap()],
-      ["focused", "Режим мгновенного терминала", () => Snd.curious()]
-    ];
-    let lastEmoIdx = -1;
-    document.getElementById("homeEyesBox").addEventListener("click", () => {
-      if (st.reacting) return;
-      st.reacting = true;
-      tg?.HapticFeedback?.impactOccurred("light");
-      let i; do { i = Math.floor(Math.random() * HOME_EMOTIONS.length); } while (i === lastEmoIdx);
-      lastEmoIdx = i;
-      const [emo, txt, sfx] = HOME_EMOTIONS[i];
-      hHint.textContent = txt;
-      sfx();
-      hX(0); hY(0);
-      setEyesEmotion("h", emo);
-      gsap.fromTo("#homeEyesSvg", { scale: 0.94 }, { scale: 1.05, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
-      setTimeout(() => { setEyesEmotion("h", "neutral"); st.reacting = false; }, 1150);
-    });
-
-    // --- СКАНЕР QR И ЭКРАН 3D-КРУГА ОПЛАТЫ ---
-    function openPayOrb(ctx) {
-      // ctx = { kind: 'order'|'transfer', order_id?, to_tg_id?, merchant_title, title, amount_rp }
-      st.payCtx = ctx;
-      showScreen("screenPay");
-      setEyesEmotion("p", "neutral");
-      document.getElementById("payTopEyes").classList.remove("fullscreen-energy");
-      document.getElementById("orbGlow").className = "orb-glow";
-      document.getElementById("orbContent").style.display = "block";
-      document.getElementById("orbResult").style.display = "none";
-      document.getElementById("payFooter").style.display = "flex";
-      document.getElementById("payConfirmBtn").disabled = false;
-      document.getElementById("payConfirmBtn").textContent = "Оплатить";
-
-      document.getElementById("payBadge").textContent = ctx.kind === "order" ? ctx.merchant_title : "ПЕРЕВОД ПО QR";
-      document.getElementById("payTitle").textContent = ctx.kind === "order" ? ctx.title : `Аккаунт ID ${ctx.to_tg_id}`;
-      document.getElementById("payBalSub").textContent = `Ваш баланс: ${st.bal} RP`;
-
-      if (ctx.kind === "order") {
-        document.getElementById("payFixedAmt").style.display = "block";
-        document.getElementById("payCustomAmtWrap").style.display = "none";
-        document.getElementById("payAmtNum").textContent = ctx.amount_rp;
-      } else {
-        document.getElementById("payFixedAmt").style.display = "none";
-        document.getElementById("payCustomAmtWrap").style.display = "flex";
-        document.getElementById("payCustomAmt").value = ctx.amount_rp || "";
-      }
-
-      gsap.fromTo("#orbStage", { scale: 0.65, opacity: 0, rotation: -35 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.52, ease: "back.out(1.5)" });
-    }
-
-    // 2-секундная анимация энергии с символами $ от глаз на весь экран
-    function spawnEnergyDollars() {
-      const layer = document.getElementById("energyLayer");
-      layer.innerHTML = "";
-      layer.style.display = "block";
-      const syms = ["$", "RP", "$", "⭐", "$"];
-      for (let i = 0; i < 4; i++) {
-        const ring = document.createElement("div");
-        ring.className = "energy-ring";
-        layer.appendChild(ring);
-        gsap.fromTo(ring, { scale: 0.4, opacity: 0.85 }, { scale: 6.5, opacity: 0, duration: 1.1, delay: i * 0.35, ease: "power2.out" });
-      }
-      for (let i = 0; i < 22; i++) {
-        const el = document.createElement("div");
-        el.className = "energy-dollar";
-        el.textContent = syms[i % syms.length];
-        layer.appendChild(el);
-        const angle = (Math.PI * 2 * i) / 22 + Math.random() * 0.4;
-        const dist = 120 + Math.random() * 140;
-        gsap.fromTo(el,
-          { x: -10, y: -10, scale: 0.3, opacity: 0 },
-          { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, scale: 1.25, opacity: 1, duration: 0.7, delay: Math.random() * 0.9, ease: "power2.out",
-            onComplete: () => gsap.to(el, { opacity: 0, scale: 0.4, duration: 0.35 })
-          }
-        );
-      }
-    }
-
-    document.getElementById("payConfirmBtn").addEventListener("click", async () => {
-      if (!st.payCtx) return;
-      let amt = st.payCtx.amount_rp;
-      if (st.payCtx.kind === "transfer") {
-        amt = parseInt(document.getElementById("payCustomAmt").value, 10);
-        if (!amt || amt < 1) { Snd.err(); showRtBanner("Введите сумму в RP", "sad"); return; }
-      }
-
-      document.getElementById("payConfirmBtn").disabled = true;
-      document.getElementById("payFooter").style.display = "none";
-
-      // 1. Скрываем круг, глаза на весь экран + 2 сек энергии с долларами
-      gsap.to("#orbStage", { scale: 0.35, opacity: 0, duration: 0.28, ease: "power2.in" });
-      document.getElementById("payTopEyes").classList.add("fullscreen-energy");
-      setEyesEmotion("p", "focused");
-      Snd.energy();
-      tg?.HapticFeedback?.impactOccurred("medium");
-      spawnEnergyDollars();
-
-      // Параллельно ждём ровно 2 секунды и выполняем запрос оплаты на сервере
-      const minWait = new Promise(r => setTimeout(r, 2000));
-      let payOk = false, resMsg = "", resSub = "";
-      try {
-        if (st.payCtx.kind === "order") {
-          const r = await api(`/api/v1/orders/${encodeURIComponent(st.payCtx.order_id)}/pay`, { method: "POST" });
-          payOk = true; resMsg = "Оплачено!"; resSub = `Остаток: ${r.wallet_balance} RP`;
-          setBalance(r.wallet_balance);
-        } else {
-          const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id: st.payCtx.to_tg_id, amount: amt, comment: "Перевод по QR" }) });
-          payOk = true; resMsg = "Переведено!"; resSub = `Получателю: ${r.net_rp} RP`;
-          setBalance(r.wallet_balance);
-        }
-      } catch (err) {
-        payOk = false; resMsg = "Ошибка оплаты"; resSub = err.message;
-      }
-      await minWait;
-
-      // 2. Глаза обратно наверх, круг вращается и увеличивается с зелёной галочкой или красным крестиком
-      document.getElementById("energyLayer").style.display = "none";
-      document.getElementById("payTopEyes").classList.remove("fullscreen-energy");
-      document.getElementById("orbContent").style.display = "none";
-      document.getElementById("orbResult").style.display = "flex";
-      document.getElementById("orbOkSvg").style.display = payOk ? "block" : "none";
-      document.getElementById("orbErrSvg").style.display = payOk ? "none" : "block";
-      document.getElementById("orbResTitle").textContent = resMsg;
-      document.getElementById("orbResSub").textContent = resSub;
-      document.getElementById("orbGlow").className = `orb-glow ${payOk ? "state-success" : "state-error"}`;
-
-      setEyesEmotion("p", payOk ? "happy" : "sad");
-      if (payOk) { Snd.ok(); tg?.HapticFeedback?.notificationOccurred("success"); }
-      else { Snd.err(); tg?.HapticFeedback?.notificationOccurred("error"); }
-
-      gsap.fromTo("#orbStage",
-        { scale: 0.25, opacity: 0, rotation: -360 },
-        { scale: 1.04, opacity: 1, rotation: 0, duration: 0.72, ease: "back.out(1.4)",
-          onComplete: () => gsap.to("#orbStage", { scale: 1, duration: 0.2 }) }
-      );
-      if (payOk) {
-        gsap.fromTo("#orbOkPath", { strokeDashoffset: 90 }, { strokeDashoffset: 0, duration: 0.5, delay: 0.25 });
-      } else {
-        gsap.fromTo("#orbErrP1", { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.3, delay: 0.25 });
-        gsap.fromTo("#orbErrP2", { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.3, delay: 0.42 });
-      }
-
-      loadProfile();
-      setTimeout(() => {
-        document.getElementById("payFooter").style.display = "flex";
-        document.getElementById("payConfirmBtn").style.display = "none";
-        document.getElementById("payCancelBtn").textContent = "Готово — на главную";
-      }, 650);
-    });
-
-    document.getElementById("payCancelBtn").addEventListener("click", () => {
-      Snd.tap();
-      document.getElementById("payConfirmBtn").style.display = "inline-flex";
-      document.getElementById("payCancelBtn").textContent = "Отменить";
-      showScreen("screenHome");
-    });
-
-    async function handleQrString(raw) {
-      const s = (raw || "").trim();
-      const uidMatch = s.match(/(?:rp_uid:|start=uid_)(\d+)/i);
-      if (uidMatch) {
-        openPayOrb({ kind: "transfer", to_tg_id: parseInt(uidMatch[1], 10), amount_rp: 0 });
-        return true;
-      }
-      const ordMatch = s.match(/ord_[a-f0-9]+/i);
-      if (ordMatch) {
-        try {
-          const o = await api(`/api/v1/orders/${encodeURIComponent(ordMatch[0])}`);
-          if (o.status === "paid") { showRtBanner("Этот счёт уже оплачен", "happy"); return true; }
-          openPayOrb({ kind: "order", ...o });
-          return true;
-        } catch (err) { showRtBanner(err.message, "sad"); return true; }
-      }
-      showRtBanner("Неизвестный QR-код", "sad");
-      return false;
-    }
-
-    document.getElementById("homeScanBtn").addEventListener("click", () => {
-      Snd.tap();
-      if (!tg?.showScanQrPopup) { showRtBanner("Сканер работает в мобильном Telegram", "sad"); return; }
-      tg.showScanQrPopup({ text: "Наведите на QR-код RoboPay" }, raw => {
-        tg.closeScanQrPopup();
-        handleQrString(raw);
-        return true;
-      });
-    });
-
-    // --- QR ГЕНЕРАЦИЯ И ФУНКЦИЯ «ПОДЕЛИТЬСЯ QR» ---
-    function makeQr(containerId, text) {
-      const el = document.getElementById(containerId); el.innerHTML = "";
-      const qr = new QRCodeStyling({
-        width: 196, height: 196, data: text, margin: 6,
-        dotsOptions: { color: "#0b1220", type: "rounded" },
-        cornersSquareOptions: { color: THEMES[themeIdx].eye, type: "extra-rounded" },
-        cornersDotOptions: { color: "#0b1220", type: "dot" },
-        backgroundOptions: { color: "#ffffff" }
-      });
-      qr.append(el);
-      return qr;
-    }
-
-    async function shareQrCard(qrObj, shareUrl, titleText) {
-      Snd.tap();
-      try {
-        if (qrObj && navigator.canShare) {
-          const blob = await qrObj.getRawData("png");
-          const file = new File([blob], "robopay-qr.png", { type: "image/png" });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: titleText, text: `${titleText}\n${shareUrl}`, files: [file] });
-            return;
-          }
-        }
-      } catch (e) { /* fallback к Telegram Share */ }
-      const tgShare = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(titleText)}`;
-      if (tg?.openTelegramLink) tg.openTelegramLink(tgShare); else window.open(tgShare, "_blank");
-    }
-
-    document.getElementById("shareMyQrBtn").addEventListener("click", () => {
-      if (!st.user) return;
-      const url = `https://t.me/${st.botUser}?start=uid_${st.user.tg_id}`;
-      shareQrCard(st.myQrObj, url, `Перевод в RoboPay на мой аккаунт (ID ${st.user.tg_id})`);
-    });
-    document.getElementById("shareInvQrBtn").addEventListener("click", () => {
-      if (!st.lastInvLink) return;
-      shareQrCard(st.lastQrObj, st.lastInvLink, "Счёт на оплату в RoboPay");
-    });
-
-    // --- ТЕХПОДДЕРЖКА (ГОЛОС + ЧАТ GROQ + АНИМАЦИЯ РТА) ---
-    let mouthTimer = null;
-    function setMouthTalking(active) {
-      st.supSpeaking = active;
-      clearInterval(mouthTimer);
-      const bars = document.querySelectorAll(".mouth-bar");
-      if (!active) {
-        bars.forEach((b, idx) => gsap.to(b, { attr: { height: [10, 14, 16, 14, 10][idx], y: [10, 8, 7, 8, 10][idx] }, duration: 0.2 }));
-        return;
-      }
-      mouthTimer = setInterval(() => {
-        bars.forEach(b => {
-          const h = 8 + Math.round(Math.random() * 24);
-          gsap.to(b, { attr: { height: h, y: 15 - h / 2 }, duration: 0.11 });
-        });
-      }, 120);
-    }
-
-    function openSupportScreen() {
-      Snd.tap();
-      showScreen("screenSupport");
-      setSupportMode(false);
-      setEyesEmotion("s", "happy");
-      setTimeout(() => setEyesEmotion("s", "neutral"), 900);
-    }
-
-    function setSupportMode(textMode) {
-      st.supTextMode = textMode;
-      document.getElementById("supFaceStage").classList.toggle("compact", textMode);
-      document.getElementById("supChatWrap").classList.toggle("open", textMode);
-      document.getElementById("supVoiceBar").style.display = textMode ? "none" : "flex";
-      document.getElementById("supStatus").textContent = textMode ? "Робот поддержки онлайн" : "Нажми на экран и задай вопрос голосом";
-    }
-
-    document.getElementById("supBackBtn").addEventListener("click", () => {
-      window.speechSynthesis?.cancel(); setMouthTalking(false);
-      showScreen("screenMenu");
-    });
-    document.getElementById("openTextChatBtn").addEventListener("click", () => { Snd.tap(); setSupportMode(true); });
-    document.getElementById("supModeToggle").addEventListener("click", () => { Snd.tap(); setSupportMode(!st.supTextMode); });
-
-    function appendChatBubble(role, text) {
-      const box = document.getElementById("supMessages");
-      const div = document.createElement("div");
-      div.className = `msg-bubble ${role === "user" ? "msg-user" : "msg-bot"}`;
-      div.textContent = text;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function speakText(text) {
-      if (!window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = "ru-RU"; utt.rate = 1.05; utt.pitch = 1.08;
-      utt.onstart = () => { setMouthTalking(true); setEyesEmotion("s", "happy"); document.getElementById("supStatus").textContent = "Говорю..."; };
-      utt.onend = utt.onerror = () => { setMouthTalking(false); setEyesEmotion("s", "neutral"); document.getElementById("supStatus").textContent = st.supTextMode ? "Робот поддержки онлайн" : "Нажми на экран и задай вопрос голосом"; };
-      window.speechSynthesis.speak(utt);
-    }
-
-    async function sendSupportQuestion(text, speakReply) {
-      if (!text.trim()) return;
-      appendChatBubble("user", text);
-      st.supHistory.push({ role: "user", content: text });
-      document.getElementById("supStatus").textContent = "Думаю...";
-      setEyesEmotion("s", "focused");
-      try {
-        const res = await api("/api/v1/support/chat", { method: "POST", body: JSON.stringify({ message: text, history: st.supHistory.slice(-8) }) });
-        st.supHistory.push({ role: "assistant", content: res.reply });
-        appendChatBubble("assistant", res.reply);
-        if (speakReply) {
-          speakText(res.reply);
-        } else {
-          setEyesEmotion("s", "happy"); setMouthTalking(true);
-          setTimeout(() => { setMouthTalking(false); setEyesEmotion("s", "neutral"); }, 900);
-          document.getElementById("supStatus").textContent = "Робот поддержки онлайн";
-        }
-      } catch (err) {
-        appendChatBubble("assistant", "Не удалось связаться с сервером поддержки.");
-        setEyesEmotion("s", "sad");
-      }
-    }
-
-    // Тап по лицу в голосовом режиме — старт распознавания речи
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let activeRec = null;
-    document.getElementById("supFaceStage").addEventListener("click", () => {
-      if (st.supTextMode) return;
-      Snd.tap();
-      if (!SpeechRec) {
-        setSupportMode(true);
-        showRtBanner("Голосовой ввод недоступен — открыт чат", "happy");
-        return;
-      }
-      window.speechSynthesis?.cancel();
-      try {
-        if (activeRec) activeRec.abort();
-        activeRec = new SpeechRec();
-        activeRec.lang = "ru-RU"; activeRec.interimResults = false;
-        activeRec.onstart = () => { document.getElementById("supStatus").textContent = "Слушаю... говорите"; setEyesEmotion("s", "surprised"); };
-        activeRec.onresult = e => {
-          const transcript = e.results[0][0].transcript;
-          sendSupportQuestion(transcript, true);
-        };
-        activeRec.onerror = () => {
-          document.getElementById("supStatus").textContent = "Не расслышал — нажмите снова или напишите текстом";
-          setEyesEmotion("s", "skeptic");
-        };
-        activeRec.start();
-      } catch { setSupportMode(true); }
-    });
-
-    document.getElementById("supSendBtn").addEventListener("click", () => {
-      const inp = document.getElementById("supTextInput");
-      const v = inp.value.trim(); if (!v) return;
-      inp.value = ""; sendSupportQuestion(v, false);
-    });
-    document.getElementById("supTextInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("supSendBtn").click(); });
-
-    // --- МОДАЛКИ КОШЕЛЬКА ---
-    function openModal(id) { Snd.tap(); const m = document.getElementById(id); m.classList.add("open"); gsap.fromTo(m.querySelector(".modal-box"), { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: "back.out(1.5)" }); }
-    function closeModal(id) { document.getElementById(id).classList.remove("open"); }
-    document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
-    document.querySelectorAll(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModal(b.id); }));
-
-    document.getElementById("openTopupBtn").addEventListener("click", () => openModal("topupModal"));
-    document.getElementById("openWithdrawBtn").addEventListener("click", () => openModal("withdrawModal"));
-    document.getElementById("openTransferBtn").addEventListener("click", () => openModal("transferModal"));
-    document.getElementById("ownerGiftLink").addEventListener("click", e => { e.preventDefault(); Snd.tap(); tg?.openTelegramLink ? tg.openTelegramLink(st.ownerUrl) : window.open(st.ownerUrl, "_blank"); });
-
-    document.querySelectorAll("#topupChips .chip").forEach(c => c.addEventListener("click", () => {
-      Snd.tap(); document.querySelectorAll("#topupChips .chip").forEach(x => x.classList.remove("active"));
-      c.classList.add("active"); document.getElementById("topAmt").value = c.dataset.amt;
-    }));
-
-    document.getElementById("submitTopupBtn").addEventListener("click", async e => {
-      const amount = parseInt(document.getElementById("topAmt").value, 10);
-      if (!amount || amount < 1 || amount > 100) { showRtBanner("Сумма подарка от 1 до 100 ⭐", "sad"); return; }
-      e.currentTarget.disabled = true;
-      try {
-        await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment: document.getElementById("topComm").value.trim() }) });
-        closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
-        showRtBanner("Заявка на пополнение отправлена!", "happy"); loadProfile();
-      } catch (err) { showRtBanner(err.message, "sad"); } finally { e.currentTarget.disabled = false; }
-    });
-
-    function renderTiers() {
-      const g = document.getElementById("tierGrid");
-      g.innerHTML = st.tiers.map(t => `
-        <button class="tier-card ${st.selectedGift === t.gift_stars ? "active" : ""}" data-gift="${t.gift_stars}">
-          <div style="font-size:15px;font-weight:800;">🎁 ${t.gift_stars} ⭐</div>
-          <div style="font-size:12px;font-weight:700;color:var(--eye-deep);">Цена: ${t.cost_rp} RP</div>
-          <div style="font-size:11px;color:var(--muted);">Получите ~${t.receive_stars} ⭐</div>
-        </button>`).join("");
-      g.querySelectorAll(".tier-card").forEach(c => c.addEventListener("click", () => {
-        Snd.tap(); st.selectedGift = parseInt(c.dataset.gift, 10); renderTiers();
-        const t = st.tiers.find(x => x.gift_stars === st.selectedGift), ok = st.bal >= t.cost_rp;
-        document.getElementById("wdrSummary").innerHTML = `Подарок <b>${t.gift_stars} ⭐</b> (~${t.receive_stars} ⭐)<br>Спишется: <b>${t.cost_rp} RP</b> (комиссия ${t.fee_rp} RP)` + (ok ? "" : `<br><span style="color:var(--red);">Не хватает ${t.cost_rp - st.bal} RP</span>`);
-        document.getElementById("submitWdrBtn").disabled = !ok;
-      }));
-    }
-
-    document.getElementById("submitWdrBtn").addEventListener("click", async e => {
-      if (!st.selectedGift) return;
-      e.currentTarget.disabled = true;
-      try {
-        const r = await api("/api/v1/withdraw", { method: "POST", body: JSON.stringify({ gift_stars: st.selectedGift, note: document.getElementById("wdrNote").value.trim() }) });
-        closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "happy"); loadProfile();
-      } catch (err) { showRtBanner(err.message, "sad"); } finally { e.currentTarget.disabled = false; }
-    });
-
-    document.getElementById("trAmt").addEventListener("input", e => {
-      const a = parseInt(e.target.value, 10) || 0, fee = a > 0 ? Math.ceil(a * st.commRate) : 0;
-      document.getElementById("trPreview").innerHTML = a > 0 ? `Комиссия: <b>${fee} RP</b> • Получатель получит: <b>${Math.max(0, a - fee)} RP</b>` : `Комиссия: ${Math.round(st.commRate * 100)}%`;
-    });
-
-    document.getElementById("submitTrBtn").addEventListener("click", async e => {
-      const to_tg_id = parseInt(document.getElementById("trTo").value, 10), amount = parseInt(document.getElementById("trAmt").value, 10);
-      if (!to_tg_id || !amount) { showRtBanner("Заполните ID и сумму", "sad"); return; }
-      e.currentTarget.disabled = true;
-      try {
-        const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment: document.getElementById("trComm").value.trim() }) });
-        closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "happy"); loadProfile();
-      } catch (err) { showRtBanner(err.message, "sad"); } finally { e.currentTarget.disabled = false; }
-    });
-
-    document.getElementById("createInvBtn").addEventListener("click", async e => {
-      const merchant_id = document.getElementById("invProj").value, title = document.getElementById("invTitle").value.trim(), amount = parseInt(document.getElementById("invAmt").value, 10);
-      if (!merchant_id || !title || !amount) { showRtBanner("Заполните все поля", "sad"); return; }
-      e.currentTarget.disabled = true;
-      try {
-        const o = await api("/api/v1/webapp/invoices", { method: "POST", body: JSON.stringify({ merchant_id, title, amount }) });
-        st.lastInvLink = o.checkout_deeplink; document.getElementById("invRes").style.display = "block";
-        st.lastQrObj = makeQr("invQrBox", o.qr_payload); showRtBanner("QR-счёт создан!", "happy");
-      } catch (err) { showRtBanner(err.message, "sad"); } finally { e.currentTarget.disabled = false; }
-    });
-    document.getElementById("copyInvBtn").addEventListener("click", () => { navigator.clipboard?.writeText(st.lastInvLink); showRtBanner("Ссылка скопирована", "happy"); });
-    document.getElementById("copyIdBtn").addEventListener("click", () => { if (!st.user) return; navigator.clipboard?.writeText(String(st.user.tg_id)); showRtBanner("ID скопирован", "happy"); });
-
-    // --- ЗАГРУЗКА ПРОФИЛЯ И REAL-TIME WEBSOCKET ---
-    async function loadProfile() {
-      if (!INIT_DATA) return;
-      try {
-        const d = await api("/api/v1/me");
-        st.user = d.user; st.ownerUrl = d.owner_url; st.botUser = d.bot_username;
-        st.commRate = d.commission_rate; st.wdrRate = d.withdraw_fee_rate; st.tiers = d.gift_tiers;
-        setBalance(d.user.wallet_balance);
-        document.getElementById("ownerNickTxt").textContent = d.owner_username;
-        document.getElementById("ownerUrlTxt").textContent = d.owner_url;
-        document.getElementById("ownerGiftLink").href = d.owner_url;
-        document.getElementById("wdrFeePct").textContent = `${Math.round(d.withdraw_fee_rate * 100)}%`;
-        document.getElementById("myIdLbl").textContent = `ID: ${d.user.tg_id}`;
-        st.myQrObj = makeQr("myQrBox", `https://t.me/${d.bot_username}?start=uid_${d.user.tg_id}`);
-        renderTiers();
-
-        const hasP = d.projects.length > 0;
-        document.getElementById("noProjNote").style.display = hasP ? "none" : "block";
-        document.getElementById("invBox").style.display = hasP ? "block" : "none";
-        if (hasP) document.getElementById("invProj").innerHTML = d.projects.map(p => `<option value="${p.merchant_id}">${p.title} (${p.balance_rp} RP)</option>`).join("");
-
-        const stMap = { pending: ["На проверке", "b-pending"], approved: ["Одобрено", "b-approved"], rejected: ["Отклонено", "b-rejected"] };
-        const reqs = [
-          ...d.topups.map(r => ({ ts: r.created_at, t: `Пополнение +${r.amount_rp} RP`, s: r.request_id, st: r.status })),
-          ...d.withdrawals.map(r => ({ ts: r.created_at, t: `Вывод 🎁 ${r.gift_stars} ⭐ (-${r.cost_rp} RP)`, s: `${r.request_id} • ~${r.receive_stars} ⭐`, st: r.status }))
-        ].sort((a, b) => (b.ts || "").localeCompare(a.ts || "")).slice(0, 8);
-        if (reqs.length) document.getElementById("reqList").innerHTML = reqs.map(r => `<div class="tx-item"><div><div style="font-size:14px;font-weight:600;">${r.t}</div><div class="mono">${r.s}</div></div><span class="badge ${stMap[r.st][1]}">${stMap[r.st][0]}</span></div>`).join("");
-
-        if (d.history.length) document.getElementById("histList").innerHTML = d.history.map(h => `<div class="tx-item"><div><div style="font-size:14px;font-weight:600;">${h.title}</div><div class="mono">${h.id}</div></div><div class="tabular" style="font-weight:700;color:${h.delta > 0 ? "var(--green)" : "var(--ink)"};">${h.delta > 0 ? "+" : ""}${h.delta} RP</div></div>`).join("");
-      } catch (e) { console.error(e); }
-    }
-
-    function connectRealtime() {
-      if (!INIT_DATA) return;
-      const proto = location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${proto}//${location.host}/ws?initData=${encodeURIComponent(INIT_DATA)}`);
-      let pingInt = null;
-      ws.onopen = () => { pingInt = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000); };
-      ws.onmessage = e => {
-        if (e.data === "pong") return;
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg.type === "sync") {
-            if (typeof msg.wallet_balance === "number") setBalance(msg.wallet_balance);
-            if (msg.notify) showRtBanner(msg.notify, msg.emotion || "happy");
-            loadProfile();
-          }
-        } catch {}
-      };
-      ws.onclose = () => { clearInterval(pingInt); setTimeout(connectRealtime, 3000); };
-    }
-
-    // --- СТАРТ С ЗАСТАВКОЙ ---
-    (async () => {
-      gsap.fromTo("#splashEyes", { scale: 0.72, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.7)" });
-      gsap.to("#splashTitle", { opacity: 1, y: 0, duration: 0.45, delay: 0.25, ease: "power2.out" });
-
-      await loadProfile();
-      connectRealtime();
-
-      const params = new URLSearchParams(location.search);
-      const page = params.get("page");
-      const orderId = tg?.initDataUnsafe?.start_param || params.get("order_id");
-      const toUid = params.get("to_uid");
-
-      setTimeout(() => {
-        gsap.to("#splash", { opacity: 0, duration: 0.4, onComplete: () => { document.getElementById("splash").style.display = "none"; } });
-        if (page === "support") openSupportScreen();
-        else if (page === "wallet" || location.hash === "#wallet") switchSub("Wallet");
-        else if (orderId) handleQrString(orderId);
-        else if (toUid) handleQrString(`rp_uid:${toUid}`);
-      }, 1150);
-    })();
-  </script>
-</body>
-</html>
+  <!-- SVG-спрайт собственных стикеров (Звезда RoboPay и Подарок) вместо базовых эмодзи -->
+  <svg style="display:none;" aria-hidden="true">
+    <defs>
+      <linearGradient id="rpStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FFE066"/><stop offset="55%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#D97706"/>
+      </linearGradient>
+      <linearGradient id="rpGiftBox" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#38BDF8"/><stop offset="100%" stop-color="#0284C7"/>
+      </linearGradient>
+      <symbol id="stk-star" viewBox="0 0 24 24">
+        <path fill="url(#rpStarGrad)" d="M12 1.8l2.
