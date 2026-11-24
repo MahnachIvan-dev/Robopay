@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl
 import httpx
 import uvicorn
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -29,7 +29,7 @@ from aiogram.types import (
     MenuButtonWebApp,
     WebAppInfo,
 )
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -67,7 +67,7 @@ DB_PATH = os.getenv("DB_PATH", "gateway.db").strip() or "gateway.db"
 DB_CHANNEL_ID = env_int("DB_CHANNEL_ID", 0)
 ADMIN_ID = env_int("ADMIN_ID", 0)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
 
 GIFT_TIERS = {15: 13, 25: 21, 50: 43, 100: 85}
 MAX_TOPUP_STARS = 100
@@ -78,10 +78,11 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 BOT_USERNAME = ""
+CACHED_GROQ_MODEL: Optional[str] = None
 db_sync_lock = asyncio.Lock()
 
 
-# --- REAL-TIME WEBSOCKET ХАБ (БОТ <-> MINI APP) ---
+# --- REAL-TIME WEBSOCKET ХАБ ---
 class RealtimeHub:
     def __init__(self) -> None:
         self.clients: Dict[int, Set[WebSocket]] = {}
@@ -112,7 +113,7 @@ class RealtimeHub:
 rt_hub = RealtimeHub()
 
 
-# --- FSM ---
+# --- FSM СОСТОЯНИЯ ---
 class CreateProjectFSM(StatesGroup):
     waiting_title = State()
     waiting_webhook = State()
@@ -130,6 +131,11 @@ class QuickInvoiceFSM(StatesGroup):
 class TopUpFSM(StatesGroup):
     waiting_amount = State()
     waiting_comment = State()
+
+
+class BroadcastFSM(StatesGroup):
+    waiting_message = State()
+    waiting_confirm = State()
 
 
 def is_admin(user_id: int) -> bool:
@@ -154,11 +160,10 @@ async def safe_edit(message: types.Message, text: str, reply_markup: InlineKeybo
         await message.edit_text(text, parse_mode="HTML", reply_markup=reply_markup, disable_web_page_preview=True)
     except TelegramBadRequest as e:
         if "message is not modified" not in str(e).lower():
-            print(f"[safe_edit fallback] {e}")
             try:
                 await message.answer(text, parse_mode="HTML", reply_markup=reply_markup, disable_web_page_preview=True)
-            except Exception as e2:
-                print(f"[safe_edit answer error] {e2}")
+            except Exception:
+                pass
 
 
 def verify_telegram_init_data(init_data: str) -> dict:
@@ -351,6 +356,44 @@ async def sync_db_to_telegram(reason: str = "Синхронизация") -> Opt
                 os.remove(snap)
 
 
+# --- АВТОПОДБОР АКТИВНОЙ МОДЕЛИ GROQ ---
+async def resolve_groq_model(client: httpx.AsyncClient, exclude: Optional[str] = None) -> Optional[str]:
+    global CACHED_GROQ_MODEL
+    try:
+        r = await client.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+        )
+        if r.status_code != 200:
+            print(f"[Groq Models Error] {r.status_code} {r.text}")
+            return None
+        models = [m["id"] for m in r.json().get("data", []) if isinstance(m, dict) and m.get("id")]
+        skip = ("whisper", "tts", "guard", "safeguard", "embed", "moderation", "playai", "orpheus", "speech", "audio")
+        chat_models = [m for m in models if m != exclude and not any(k in m.lower() for k in skip)]
+        preferred = [
+            "llama-3.1-8b-instant",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3-32b",
+            "llama-3.3-70b-versatile",
+            "gemma2-9b-it",
+        ]
+        for p in preferred:
+            if p in chat_models:
+                CACHED_GROQ_MODEL = p
+                print(f"[Groq Auto-Selected Model] {p}")
+                return p
+        if chat_models:
+            CACHED_GROQ_MODEL = chat_models[0]
+            print(f"[Groq Fallback Model] {chat_models[0]}")
+            return chat_models[0]
+    except Exception as e:
+        print(f"[Groq Models Exception] {e}")
+    return None
+
+
 # --- БИЗНЕС-ЛОГИКА ---
 def create_order_record(merchant_id: str, title: str, description: str, amount_rp: int, external_order_id: Optional[str] = None) -> dict:
     order_id = f"ord_{secrets.token_hex(6)}"
@@ -430,14 +473,13 @@ async def create_withdraw_request(user_tg_id: int, gift_stars: int, target_note:
     asyncio.create_task(sync_db_to_telegram(f"Вывод {req_id} (подарок {gift_stars}⭐, -{cost_rp} RP)"))
     asyncio.create_task(rt_hub.push(user_tg_id, {
         "type": "sync", "wallet_balance": u["wallet_balance"],
-        "notify": f"Заявка на вывод {gift_stars} ⭐ создана", "emotion": "happy",
+        "notify": f"Заявка на вывод {gift_stars} Stars создана", "emotion": "happy",
     }))
 
     if ADMIN_ID:
         uname = f"@{u['username']}" if u and u["username"] else "без username"
         fname = esc(u["first_name"] if u else "Пользователь")
         rows_kb = []
-        # URL-кнопку добавляем только если есть публичный @username (иначе Telegram даёт privacy error)
         if u and u["username"]:
             rows_kb.append([InlineKeyboardButton(text=f"🎁 Открыть @{u['username']}", url=f"https://t.me/{u['username']}")])
         rows_kb.append([
@@ -449,8 +491,8 @@ async def create_withdraw_request(user_tg_id: int, gift_stars: int, target_note:
                 ADMIN_ID,
                 f"📤 <b>Заявка на вывод подарком</b> <code>{req_id}</code>\n\n"
                 f"• Клиент: <a href=\"tg://user?id={user_tg_id}\">{fname}</a> ({uname}, ID <code>{user_tg_id}</code>)\n"
-                f"• Отправить подарок на: <b>{gift_stars} ⭐</b> (~{receive_stars} ⭐ после обмена)\n"
-                f"• Списано с кошелька: <b>{cost_rp} RP</b> (комиссия: {fee_rp} RP)\n"
+                f"• Подарок: <b>{gift_stars} ⭐</b> (~{receive_stars} ⭐ при обмене)\n"
+                f"• Списано: <b>{cost_rp} RP</b> (комиссия: {fee_rp} RP)\n"
                 f"• Примечание: <i>{esc(target_note or '—')}</i>",
                 parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=rows_kb),
             )
@@ -476,12 +518,11 @@ async def dispatch_partner_notification(order: dict, merchant: dict) -> None:
     except Exception:
         pass
 
-    # Real-time пуш владельцу проекта
     asyncio.create_task(rt_hub.push(merchant["owner_tg_id"], {
         "type": "sync",
         "wallet_balance": get_wallet_balance(merchant["owner_tg_id"]),
         "notify": f"Оплата +{order['net_rp']} RP ({order['title']})",
-        "emotion": "happy",
+        "emotion": "glee",
     }))
 
     if merchant.get("webhook_url"):
@@ -513,7 +554,7 @@ def build_main_menu(user: types.User) -> tuple[str, InlineKeyboardMarkup]:
     text = (
         f"👋 <b>Привет, {esc(user.first_name)}! Это RoboPay.</b>\n\n"
         f"<b>Для чего нужен RoboPay:</b>\n"
-        f"• <b>Мгновенные оплаты по QR и ссылкам</b> — платите за услуги и переводите друзьям во внутренней валюте <b>RP</b> (1 ⭐ = 1 RP).\n"
+        f"• <b>Мгновенные оплаты по QR и ссылкам</b> — платите за услуги и переводите друзьям во внутренней валюте <b>RP</b> (1 Star = 1 RP).\n"
         f"• <b>Пополнение и вывод подарками Telegram</b> — пополняйте баланс подарками до 100 ⭐ и выводите RP обратно в звёзды.\n"
         f"• <b>Платёжный шлюз для ваших проектов</b> — подключайте своего бота или канал и получайте мгновенные сигналы об оплате.\n"
         f"• <b>Живой ИИ-робот техподдержки</b> — отвечает голосом и текстом 24/7.\n\n"
@@ -522,7 +563,7 @@ def build_main_menu(user: types.User) -> tuple[str, InlineKeyboardMarkup]:
 
     btns = []
     if PUBLIC_URL.startswith("https://"):
-        btns.append([InlineKeyboardButton(text="👁 Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
+        btns.append([InlineKeyboardButton(text="Открыть терминал RoboPay", web_app=WebAppInfo(url=f"{PUBLIC_URL}/"))])
     btns.append([
         InlineKeyboardButton(text="💳 Кошелёк / Вывод", callback_data="wallet"),
         InlineKeyboardButton(text="⚡ Выставить счёт", callback_data="quick_pay"),
@@ -758,7 +799,7 @@ async def cb_withdraw_proj(cb: types.CallbackQuery) -> None:
         conn.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE tg_id = ?", (amt, uid))
         new_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (uid,)).fetchone()["wallet_balance"]
     asyncio.create_task(sync_db_to_telegram(f"Вывод {amt} RP с проекта {mid}"))
-    asyncio.create_task(rt_hub.push(uid, {"type": "sync", "wallet_balance": new_bal, "notify": f"+{amt} RP с проекта на кошелёк", "emotion": "happy"}))
+    asyncio.create_task(rt_hub.push(uid, {"type": "sync", "wallet_balance": new_bal, "notify": f"+{amt} RP с проекта на кошелёк", "emotion": "glee"}))
     card = build_project_card(mid, uid)
     await safe_edit(cb.message, card[0], card[1])
     await cb.answer(f"+{amt} RP на кошелёк!", show_alert=True)
@@ -955,7 +996,7 @@ async def cb_api_docs(cb: types.CallbackQuery) -> None:
     await cb.answer()
 
 
-# --- АДМИН-ПАНЕЛЬ (ИСПРАВЛЕННЫЙ ПРОСМОТР ВЫВОДОВ И ПОПОЛНЕНИЙ) ---
+# --- АДМИН-ПАНЕЛЬ И РАССЫЛКА (СТРОГО ADMIN_ID) ---
 def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
     with get_db() as conn:
         u_cnt = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -968,13 +1009,14 @@ def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
     text = (
         f"🛠 <b>Админ-панель RoboPay</b>\n\n"
         f"• Пользователей: <b>{u_cnt}</b> (на кошельках: {w_sum} RP)\n"
-        f"• Заявок на пополнение: <b>{p_top}</b>\n"
-        f"• Заявок на вывод: <b>{p_wdr}</b>\n"
+        f"• Пополнений на проверке: <b>{p_top}</b>\n"
+        f"• Выводов на проверке: <b>{p_wdr}</b>\n"
         f"• Комиссии шлюза: <b>{f1 + f2 + f3} RP</b>\n"
         f"• Приём подарков: <a href=\"{OWNER_URL}\">{esc(OWNER_DISPLAY)}</a>"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"📥 Пополнения ({p_top})", callback_data="admin_topups"), InlineKeyboardButton(text=f"📤 Выводы ({p_wdr})", callback_data="admin_withdraws")],
+        [InlineKeyboardButton(text="📢 Сделать рассылку", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="💾 Бэкап БД в канал", callback_data="admin_backup")],
         [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_panel"), InlineKeyboardButton(text="◀️ Меню", callback_data="main_menu")],
     ])
@@ -982,13 +1024,110 @@ def build_admin_panel() -> tuple[str, InlineKeyboardMarkup]:
 
 
 @dp.callback_query(F.data == "admin_panel")
-async def cb_admin(cb: types.CallbackQuery) -> None:
+async def cb_admin(cb: types.CallbackQuery, state: FSMContext) -> None:
     if not is_admin(cb.from_user.id):
         await cb.answer("⛔ Доступ запрещён", show_alert=True)
         return
+    await state.clear()
     t, kb = build_admin_panel()
     await safe_edit(cb.message, t, kb)
     await cb.answer()
+
+
+# --- РАССЫЛКА (КОПИРОВАНИЕ И ПЕРЕСЫЛКА ЛЮБЫХ ПОСТОВ/МЕДИА/СТИКЕРОВ/ЭМОДЗИ) ---
+@dp.callback_query(F.data == "admin_broadcast")
+async def cb_admin_broadcast(cb: types.CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True)
+        return
+    await state.set_state(BroadcastFSM.waiting_message)
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="admin_panel")]])
+    await safe_edit(
+        cb.message,
+        "📢 <b>Рассылка пользователям RoboPay</b>\n\n"
+        "Отправьте сюда или <b>перешлите пост из вашего ТГ-канала</b> — поддерживаются текст, фото, видео, GIF, кружки, голосовые, стикеры, документы и премиум-эмодзи.\n\n"
+        "После этого вы выберете: переслать с шапкой канала или отправить от имени бота.",
+        kb,
+    )
+    await cb.answer()
+
+
+@dp.message(BroadcastFSM.waiting_message)
+async def fsm_broadcast_receive(msg: types.Message, state: FSMContext) -> None:
+    if not is_admin(msg.from_user.id):
+        return
+    with get_db() as conn:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+    await state.update_data(from_chat_id=msg.chat.id, message_id=msg.message_id)
+    await state.set_state(BroadcastFSM.waiting_confirm)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"📤 Отправить копией от бота ({total_users} чел.)", callback_data="bc_run:copy")],
+        [InlineKeyboardButton(text=f"↪️ Переслать с шапкой канала ({total_users} чел.)", callback_data="bc_run:forward")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_panel")],
+    ])
+    await msg.answer(
+        f"📢 <b>Пост готов к рассылке!</b>\n\n"
+        f"• Получателей в базе: <b>{total_users}</b>\n"
+        f"• <b>Копией:</b> сохранит фото, видео, стикеры, премиум-эмодзи и кнопки без пометки «Переслано».\n"
+        f"• <b>Переслать:</b> сохранит шапку и кликабельную ссылку на ваш ТГ-канал.\n\n"
+        f"Выберите способ отправки:",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
+
+
+@dp.callback_query(BroadcastFSM.waiting_confirm, F.data.startswith("bc_run:"))
+async def cb_broadcast_run(cb: types.CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(cb.from_user.id):
+        return
+    mode = cb.data.split(":")[1]
+    data = await state.get_data()
+    await state.clear()
+
+    from_chat_id = data["from_chat_id"]
+    message_id = data["message_id"]
+
+    with get_db() as conn:
+        user_ids = [r["tg_id"] for r in conn.execute("SELECT tg_id FROM users").fetchall()]
+
+    await safe_edit(cb.message, f"⏳ <b>Рассылка запущена...</b> (0 / {len(user_ids)})", InlineKeyboardMarkup(inline_keyboard=[]))
+    await cb.answer("Рассылка стартовала")
+
+    sent, failed = 0, 0
+    for uid in user_ids:
+        try:
+            if mode == "forward":
+                await bot.forward_message(chat_id=uid, from_chat_id=from_chat_id, message_id=message_id)
+            else:
+                await bot.copy_message(chat_id=uid, from_chat_id=from_chat_id, message_id=message_id)
+            sent += 1
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after + 0.5)
+            try:
+                if mode == "forward":
+                    await bot.forward_message(chat_id=uid, from_chat_id=from_chat_id, message_id=message_id)
+                else:
+                    await bot.copy_message(chat_id=uid, from_chat_id=from_chat_id, message_id=message_id)
+                sent += 1
+            except Exception:
+                failed += 1
+        except (TelegramForbiddenError, TelegramBadRequest):
+            failed += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🛠 В админ-панель", callback_data="admin_panel")]])
+    await safe_edit(
+        cb.message,
+        f"✅ <b>Рассылка завершена!</b>\n\n"
+        f"• Режим: <b>{'Пересылка с каналом' if mode == 'forward' else 'Копия от бота'}</b>\n"
+        f"• Доставлено: <b>{sent}</b>\n"
+        f"• Не доставлено (заблокировали бота): <b>{failed}</b>",
+        kb,
+    )
 
 
 @dp.callback_query(F.data == "admin_topups")
@@ -1034,7 +1173,7 @@ async def cb_admin_withdraws(cb: types.CallbackQuery) -> None:
     fname = esc(r["first_name"] or "Пользователь")
     rows_kb = []
     if r["username"]:
-        rows_kb.append([InlineKeyboardButton(text=f"🎁 Открыть профиль @{r['username']}", url=f"https://t.me/{r['username']}")])
+        rows_kb.append([InlineKeyboardButton(text=f"🎁 Открыть @{r['username']}", url=f"https://t.me/{r['username']}")])
     rows_kb.append([
         InlineKeyboardButton(text=f"✅ Одобрить ({r['gift_stars']} ⭐)", callback_data=f"wdr_ok:{r['request_id']}"),
         InlineKeyboardButton(text="❌ Отклонить", callback_data=f"wdr_no:{r['request_id']}"),
@@ -1073,7 +1212,7 @@ async def cb_review_topup(cb: types.CallbackQuery) -> None:
     asyncio.create_task(rt_hub.push(r["user_tg_id"], {
         "type": "sync", "wallet_balance": new_bal,
         "notify": f"+{r['amount_rp']} RP зачислено! Успешно" if ok else f"Заявка {rid} отклонена",
-        "emotion": "happy" if ok else "sad",
+        "emotion": "glee" if ok else "sadDown",
     }))
     await safe_edit(cb.message, f"{'✅ ОДОБРЕНО' if ok else '❌ ОТКЛОНЕНО'} • <code>{rid}</code> ({r['amount_rp']} RP)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📥 Следующая заявка", callback_data="admin_topups")], [InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
     await cb.answer("Готово")
@@ -1104,8 +1243,8 @@ async def cb_review_withdraw(cb: types.CallbackQuery) -> None:
     asyncio.create_task(sync_db_to_telegram(f"Вывод {rid}: {st}"))
     asyncio.create_task(rt_hub.push(r["user_tg_id"], {
         "type": "sync", "wallet_balance": new_bal,
-        "notify": f"Готово! Подарок {r['gift_stars']} ⭐ отправлен" if ok else f"Вывод отклонён (+{r['cost_rp']} RP возврат)",
-        "emotion": "happy" if ok else "sad",
+        "notify": f"Готово! Подарок {r['gift_stars']} Stars отправлен" if ok else f"Вывод отклонён (+{r['cost_rp']} RP возврат)",
+        "emotion": "glee" if ok else "sadDown",
     }))
     await safe_edit(cb.message, f"{'✅ ВЫВОД ОДОБРЕН' if ok else '❌ ВЫВОД ОТКЛОНЁН (RP возвращены)'} • <code>{rid}</code> ({r['gift_stars']} ⭐)", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📤 Следующая заявка", callback_data="admin_withdraws")], [InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")]]))
     await cb.answer("Готово")
@@ -1214,7 +1353,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "bot": BOT_USERNAME}
+    return {"ok": True, "bot": BOT_USERNAME, "groq_model": CACHED_GROQ_MODEL or GROQ_MODEL}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
 
 
 @app.get("/")
@@ -1236,9 +1380,7 @@ async def websocket_endpoint(ws: WebSocket, initData: str = Query(default="")):
             msg = await ws.receive_text()
             if msg == "ping":
                 await ws.send_text("pong")
-    except WebSocketDisconnect:
-        rt_hub.disconnect(uid, ws)
-    except Exception:
+    except (WebSocketDisconnect, Exception):
         rt_hub.disconnect(uid, ws)
 
 
@@ -1267,6 +1409,7 @@ async def api_me(x_telegram_init_data: str = Header(default="")):
 
 @app.post("/api/v1/support/chat")
 async def api_support_chat(req: SupportChatReq, x_telegram_init_data: str = Header(default="")):
+    global CACHED_GROQ_MODEL
     uid, bal = 0, 0
     if x_telegram_init_data:
         try:
@@ -1277,15 +1420,15 @@ async def api_support_chat(req: SupportChatReq, x_telegram_init_data: str = Head
             pass
 
     if not GROQ_API_KEY:
-        return {"reply": f"Я робот поддержки RoboPay! Чтобы включить мой ИИ-интеллект, добавьте GROQ_API_KEY в переменные Railway. По срочным вопросам можно написать владельцу {OWNER_DISPLAY}."}
+        return {"reply": f"Я робот поддержки RoboPay! Добавьте GROQ_API_KEY в переменные Railway, чтобы включить ИИ. Пока можно написать владельцу {OWNER_DISPLAY}."}
 
     system_prompt = (
-        f"Ты — дружелюбный, остроумный и лаконичный робот техподдержки платёжного сервиса RoboPay в Telegram. "
-        f"Отвечай по-русски, коротко и понятно (2-4 предложения, удобно для озвучивания голосом, без лишнего markdown). "
-        f"Факты о RoboPay: внутренняя валюта RP (1 Telegram Star = 1 RP). Пополнение — отправка подарка до {MAX_TOPUP_STARS} ⭐ владельцу {OWNER_DISPLAY} с последующим одобрением заявки. "
-        f"Вывод — заявка на подарок 15, 25, 50 или 100 ⭐ с комиссией {int(WITHDRAW_FEE_RATE * 100)}%, одобряется владельцем. "
+        f"Ты — дружелюбный, живой и лаконичный робот техподдержки сервиса RoboPay в Telegram. "
+        f"Отвечай по-русски, коротко и понятно (2-4 предложения, удобно для озвучивания голосом, без звёздочек markdown). "
+        f"Факты: валюта RP (1 Telegram Star = 1 RP). Пополнение — отправка подарка до {MAX_TOPUP_STARS} звёзд владельцу {OWNER_DISPLAY} с одобрением заявки. "
+        f"Вывод — заявка на подарок 15, 25, 50 или 100 звёзд с комиссией {int(WITHDRAW_FEE_RATE * 100)}%, одобряется владельцем. "
         f"Переводы по ID/QR и оплата счетов с комиссией {int(COMMISSION_RATE * 100)}%. "
-        f"Разработчики могут подключить бота через REST API (раздел Мои проекты в боте). "
+        f"Разработчики подключают бота через REST API в разделе Мои проекты. "
         f"Текущий пользователь: ID {uid or 'гость'}, баланс {bal} RP."
     )
     messages = [{"role": "system", "content": system_prompt}]
@@ -1294,21 +1437,33 @@ async def api_support_chat(req: SupportChatReq, x_telegram_init_data: str = Head
             messages.append({"role": m.role, "content": m.content[:600]})
     messages.append({"role": "user", "content": req.message})
 
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-                json={"model": GROQ_MODEL, "messages": messages, "temperature": 0.6, "max_tokens": 320},
-            )
-            data = resp.json()
-            if resp.status_code != 200:
-                print(f"[Groq Error] {data}")
-                return {"reply": f"Мои нейронные цепи сейчас перегружены. Попробуйте через пару секунд или напишите {OWNER_DISPLAY}."}
-            return {"reply": data["choices"][0]["message"]["content"].strip()}
-    except Exception as e:
-        print(f"[Groq Exception] {e}")
-        return {"reply": f"Связь с сервером ИИ прервалась. Попробуйте повторить вопрос или обратитесь к {OWNER_DISPLAY}."}
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        model = CACHED_GROQ_MODEL or GROQ_MODEL
+        for attempt in range(2):
+            try:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                    json={"model": model, "messages": messages, "temperature": 0.6, "max_tokens": 320},
+                )
+                data = resp.json()
+                if resp.status_code == 200:
+                    CACHED_GROQ_MODEL = model
+                    return {"reply": data["choices"][0]["message"]["content"].strip()}
+
+                err_code = data.get("error", {}).get("code", "")
+                print(f"[Groq Attempt {attempt + 1} Error] model={model} resp={data}")
+                if attempt == 0 and (resp.status_code in (400, 404) or err_code == "model_not_found"):
+                    fallback = await resolve_groq_model(client, exclude=model)
+                    if fallback:
+                        model = fallback
+                        continue
+                break
+            except Exception as e:
+                print(f"[Groq Exception] {e}")
+                break
+
+    return {"reply": f"Не удалось получить ответ от ИИ. Попробуйте ещё раз через пару секунд или напишите владельцу {OWNER_DISPLAY}."}
 
 
 @app.post("/api/v1/topup")
@@ -1346,7 +1501,7 @@ async def api_transfer(req: TransferReq, x_telegram_init_data: str = Header(defa
         to_bal = conn.execute("SELECT wallet_balance FROM users WHERE tg_id = ?", (req.to_tg_id,)).fetchone()["wallet_balance"]
 
     asyncio.create_task(sync_db_to_telegram(f"Перевод {tid} ({req.amount} RP)"))
-    asyncio.create_task(rt_hub.push(req.to_tg_id, {"type": "sync", "wallet_balance": to_bal, "notify": f"+{net_rp} RP перевод от {from_id}", "emotion": "happy"}))
+    asyncio.create_task(rt_hub.push(req.to_tg_id, {"type": "sync", "wallet_balance": to_bal, "notify": f"+{net_rp} RP перевод от {from_id}", "emotion": "glee"}))
     try:
         await bot.send_message(req.to_tg_id, f"💸 <b>Входящий перевод</b>\n• Зачислено: <b>+{net_rp} RP</b> (комиссия {fee_rp} RP)\n• От: <code>{from_id}</code>", parse_mode="HTML")
     except Exception:
