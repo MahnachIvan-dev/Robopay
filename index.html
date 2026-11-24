@@ -720,16 +720,28 @@
 
     // RoboPay eyes: smooth, solid leaf-shaped vector forms (not pixel rectangles).
     function drawSolidEye(ctx, cx, cy, e, scale, side) {
-      const w = Math.max(1, e.w * scale), h = Math.max(1, e.h * scale);
-      const tilt = ((e.tL || 0) - (e.tR || 0)) * 0.012;
-      ctx.save(); ctx.translate(cx, cy + (e.y || 0) * scale);
-      ctx.rotate((side === "L" ? -1 : 1) * tilt); if (side === "R") ctx.scale(-1, 1);
-      ctx.beginPath(); ctx.moveTo(-w*.52,-h*.30);
-      ctx.bezierCurveTo(-w*.48,-h*.62,-w*.05,-h*.68,w*.30,-h*.43);
-      ctx.bezierCurveTo(w*.53,-h*.26,w*.62,h*.13,w*.38,h*.39);
-      ctx.bezierCurveTo(w*.20,h*.58,-w*.22,h*.60,-w*.46,h*.30);
-      ctx.bezierCurveTo(-w*.58,h*.12,-w*.60,-h*.10,-w*.52,-h*.30);
-      ctx.closePath(); ctx.fill(); ctx.restore();
+      const w=Math.max(1,e.w*scale), h=Math.max(1,e.h*scale);
+      const tilt=((e.tL||0)-(e.tR||0))*0.012;
+      ctx.save(); ctx.translate(cx,cy+(e.y||0)*scale);
+      ctx.rotate((side==="L"?-1:1)*tilt); if(side==="R")ctx.scale(-1,1);
+      const path=new Path2D();
+      path.moveTo(-w*.52,-h*.30);
+      path.bezierCurveTo(-w*.48,-h*.62,-w*.05,-h*.68,w*.30,-h*.43);
+      path.bezierCurveTo(w*.53,-h*.26,w*.62,h*.13,w*.38,h*.39);
+      path.bezierCurveTo(w*.20,h*.58,-w*.22,h*.60,-w*.46,h*.30);
+      path.bezierCurveTo(-w*.58,h*.12,-w*.60,-h*.10,-w*.52,-h*.30);
+      path.closePath();
+      // Пиксельный силуэт с мягко скруглёнными ячейками.
+      const cell=Math.max(1.25,Math.min(2.0,Math.min(w,h)*.19));
+      const step=cell*.88, radius=cell*.28;
+      for(let y=-h*.72;y<=h*.72;y+=step){
+        for(let x=-w*.64;x<=w*.64;x+=step){
+          if(ctx.isPointInPath(path,x+step*.5,y+step*.5)){
+            ctx.beginPath(); ctx.roundRect(x,y,cell,cell,radius); ctx.fill();
+          }
+        }
+      }
+      ctx.restore();
     }
 
     function drawStaticPixelEyes(canvasId, emoName, gw, gh) {
@@ -775,6 +787,10 @@
         this.gx = lerp(this.gx, this.tgx, 0.16);
         this.gy = lerp(this.gy, this.tgy, 0.16);
 
+        // Непрерывная idle-анимация: дыхание, микродвижение и редкое моргание.
+        const idle=Math.sin(time*0.00135);
+        const blinkWave=Math.max(0,1-Math.abs(((time%4700)-2350)/115));
+        const eyeScaleY=Math.max(.16,1-blinkWave*.84+idle*.018);
         const ctx = this.ctx, gw = this.gw, gh = this.gh;
         const sx = this.c.width / gw, sy = this.c.height / gh;
         ctx.clearRect(0, 0, this.c.width, this.c.height);
@@ -786,8 +802,16 @@
         const rcy = baseCy + this.cur.R.y + this.gy;
         ctx.save();
         ctx.scale(sx, sy);
+        ctx.save();
+        ctx.translate(0, Math.sin(time*.0011)*.22);
+        ctx.translate(lcx, lcy); ctx.scale(1,eyeScaleY); ctx.translate(-lcx,-lcy);
         drawSolidEye(ctx, lcx, lcy, this.cur.L, 1, "L");
+        ctx.restore();
+        ctx.save();
+        ctx.translate(0, Math.sin(time*.0011+.35)*.22);
+        ctx.translate(rcx, rcy); ctx.scale(1,eyeScaleY); ctx.translate(-rcx,-rcy);
         drawSolidEye(ctx, rcx, rcy, this.cur.R, 1, "R");
+        ctx.restore();
         ctx.restore();
 
         // Пиксельный анимированный рот для страницы техподдержки
