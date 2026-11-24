@@ -728,31 +728,25 @@
     }
 
     // RoboPay eyes: smooth, solid leaf-shaped vector forms (not pixel rectangles).
-    function drawSolidEye(ctx,cx,cy,e,scale,side){
+    // Cozmo-style pixel matrix: fixed-size rounded cells, never stretched.
+    function drawSolidEye(ctx,cx,cy,e,scale,side,time=0){
       const w=Math.max(1,e.w*scale),h=Math.max(1,e.h*scale);
-      const tilt=((e.tL||0)-(e.tR||0))*.006;
-      ctx.save();
-      ctx.translate(cx,cy+(e.y||0)*scale);
-      ctx.rotate((side==="L"?-1:1)*tilt);
-      if(side==="R")ctx.scale(-1,1);
-
-      // Единый силуэт из плотно соединённых пиксельных ячеек.
-      // Ячейки перекрываются на долю пикселя — между ними нет просветов и мерцания.
-      const rows=[[4,7],[2,9],[1,10],[0,11],[0,11],[1,10],[2,9],[4,7]];
-      const cols=12,rowH=h/rows.length,colW=w/12;
-      const overlap=Math.max(.35,Math.min(colW,rowH)*.10);
-      const radius=Math.min(colW,rowH)*.24;
-      for(let row=0;row<rows.length;row++){
-        const [from,to]=rows[row];
-        for(let col=from;col<=to;col++){
-          const x=-w/2+col*colW-overlap/2;
-          const y=-h/2+row*rowH-overlap/2;
-          ctx.beginPath();
-          ctx.roundRect(x,y,colW+overlap,rowH+overlap,radius);
-          ctx.fill();
+      const tilt=((e.tL||0)-(e.tR||0))*.42;
+      const cell=1.72*scale,gap=.22*scale,pitch=cell+gap,radius=.34*scale;
+      ctx.save();ctx.translate(cx,cy+(e.y||0)*scale);if(side==="R")ctx.scale(-1,1);
+      for(let py=-h/2;py<=h/2;py+=pitch){
+        for(let px=-w/2;px<=w/2;px+=pitch){
+          const localY=py-(px/w)*tilt,nx=px/(w/2),ny=localY/(h/2),curve=nx*nx+ny*ny;
+          if(curve>1.08)continue;
+          if(e.a&&Math.abs(nx)>.35&&ny>-.15)continue;
+          const edge=1-Math.min(1,Math.max(0,(curve-.70)/.38));
+          const phase=(Math.floor((px+w/2)/pitch)*7+Math.floor((py+h/2)/pitch)*13)%19;
+          const shimmer=.88+.12*(.5+.5*Math.sin(time*.0022+phase));
+          ctx.globalAlpha=Math.max(.72,Math.min(1,edge*shimmer));
+          ctx.beginPath();ctx.roundRect(px-cell/2,py-cell/2,cell,cell,radius);ctx.fill();
         }
       }
-      ctx.restore();
+      ctx.globalAlpha=1;ctx.restore();
     }
 
         function drawStaticPixelEyes(canvasId, emoName, gw, gh) {
@@ -767,8 +761,8 @@
       const sx = canvas.width / gw, sy = canvas.height / gh;
       ctx.save();
       ctx.scale(sx, sy);
-      drawSolidEye(ctx, gw * 0.31, gh * 0.5, l, 1, "L");
-      drawSolidEye(ctx, gw * 0.69, gh * 0.5, r, 1, "R");
+      drawSolidEye(ctx, gw * 0.31, gh * 0.5, l, 1, "L", 0);
+      drawSolidEye(ctx, gw * 0.69, gh * 0.5, r, 1, "R", 0);
       ctx.restore();
     }
 
@@ -798,10 +792,8 @@
         this.gx = lerp(this.gx, this.tgx, 0.16);
         this.gy = lerp(this.gy, this.tgy, 0.16);
 
-        // Постоянная спокойная idle-анимация всего глаза целиком.
-        // Никакие отдельные пиксели не включаются/выключаются и глаза не схлопываются.
+        // Pixel cells animate independently; eye geometry is never scaled.
         const idle=Math.sin(time*0.00115);
-        const eyeScaleY=1;
         const ctx = this.ctx, gw = this.gw, gh = this.gh;
         const sx = this.c.width / gw, sy = this.c.height / gh;
         ctx.clearRect(0, 0, this.c.width, this.c.height);
@@ -814,14 +806,12 @@
         ctx.save();
         ctx.scale(sx, sy);
         ctx.save();
-        ctx.translate(0, idle*.16);
-        ctx.translate(lcx, lcy); ctx.scale(1,eyeScaleY); ctx.translate(-lcx,-lcy);
-        drawSolidEye(ctx, lcx, lcy, this.cur.L, 1, "L");
+        ctx.translate(0, idle*.10);
+        drawSolidEye(ctx, lcx, lcy, this.cur.L, 1, "L", time);
         ctx.restore();
         ctx.save();
-        ctx.translate(0, idle*.16);
-        ctx.translate(rcx, rcy); ctx.scale(1,eyeScaleY); ctx.translate(-rcx,-rcy);
-        drawSolidEye(ctx, rcx, rcy, this.cur.R, 1, "R");
+        ctx.translate(0, idle*.10);
+        drawSolidEye(ctx, rcx, rcy, this.cur.R, 1, "R", time);
         ctx.restore();
         ctx.restore();
 
