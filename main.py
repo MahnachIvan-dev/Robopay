@@ -704,7 +704,7 @@ async def stars_payment_success(msg: types.Message) -> None:
     try:
         parts = sp.invoice_payload.split(":")
         amount = int(parts[2])
-        if len(parts) != 4 or parts[0] != "rpstars" or int(parts[1]) != msg.from_user.id or amount not in (10, 25, 50, 100):
+        if len(parts) != 4 or parts[0] != "rpstars" or int(parts[1]) != msg.from_user.id or amount not in (10, 25, 50, 100) or sp.currency != "XTR" or sp.total_amount != amount:
             await msg.answer("Платёж получен, но счёт не прошёл проверку. Обратитесь в поддержку RoboPay.")
             return
     except Exception:
