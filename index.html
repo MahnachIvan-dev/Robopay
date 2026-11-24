@@ -287,6 +287,13 @@
       background: rgba(255,255,255,0.88); backdrop-filter: blur(20px); display: flex; gap: 8px;
     }
 
+    .rp-tx-flash{animation:rpTxFlash 1.05s cubic-bezier(.2,.8,.2,1) both;position:relative}
+    .rp-tx-flash:after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid rgba(0,220,235,.55);pointer-events:none;animation:rpTxRing 1.05s ease-out both}
+    .rp-tx-success{animation:rpTxSuccess .72s cubic-bezier(.16,1,.3,1) both}
+    @keyframes rpTxFlash{0%{transform:scale(.97)}35%{transform:scale(1.035);filter:brightness(1.15)}100%{transform:scale(1)}}
+    @keyframes rpTxRing{0%{opacity:.9;transform:scale(.94)}100%{opacity:0;transform:scale(1.18)}}
+    @keyframes rpTxSuccess{0%{transform:translateY(8px) scale(.96);opacity:.6}65%{transform:translateY(-3px) scale(1.025)}100%{transform:none;opacity:1}}
+    @media(prefers-reduced-motion:reduce){.rp-tx-flash,.rp-tx-success,.rp-tx-flash:after{animation:none!important}}
     /* Кнопки, поля, модалки */
     .btn {
       width: 100%; padding: 13px 16px; border-radius: 14px; border: 1px solid transparent;
@@ -647,27 +654,27 @@
     // --- 2D ПИКСЕЛЬНЫЙ ДВИЖОК ГЛАЗ COZMO (ЧИСТЫЙ 2D, БЕЗ ТЕНЕЙ И БЕЛЫХ ШТОРОК) ---
     // Каждая эмоция задаёт геометрию левого (L) и правого (R) глаза напрямую в пиксельной сетке 56x28.
     const EMO_PRESETS = {
-      neutral:     { L:{w:15,h:13,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:13,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
+      neutral:     { L:{w:18,h:10,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:18,h:10,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
       blinkHigh:   { L:{w:17,h:1.6,y:-5,tL:0,tR:0,bL:0,bR:0,a:0}, R:{w:17,h:1.6,y:-5,tL:0,tR:0,bL:0,bR:0,a:0} },
       blinkLow:    { L:{w:17,h:1.6,y:5,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:17,h:1.6,y:5,tL:0,tR:0,bL:0,bR:0,a:0} },
-      happy:       { L:{w:16,h:8,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2}, R:{w:16,h:8,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2} },
-      glee:        { L:{w:16,h:6.5,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2},R:{w:16,h:6.5,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2} },
-      sadDown:     { L:{w:15,h:9,y:4,tL:5.5,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:9,y:4,tL:0,tR:5.5,bL:0,bR:0,a:0} },
-      sadUp:       { L:{w:15,h:10,y:-2,tL:4.5,tR:0,bL:0,bR:0,a:0},R:{w:15,h:10,y:-2,tL:0,tR:4.5,bL:0,bR:0,a:0} },
-      worried:     { L:{w:15,h:11,y:0,tL:4,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:11,y:0,tL:0,tR:4,bL:0,bR:0,a:0} },
-      focused:     { L:{w:16,h:7.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:16,h:7.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0} },
+      happy:       { L:{w:18,h:7,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2}, R:{w:18,h:7,y:-2,tL:0,tR:0,bL:0,bR:0,a:3.2} },
+      glee:        { L:{w:18,h:6,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2},R:{w:18,h:6,y:-4,tL:0,tR:0,bL:0,bR:0,a:4.2} },
+      sadDown:     { L:{w:18,h:8,y:4,tL:5.5,tR:0,bL:0,bR:0,a:0},  R:{w:18,h:8,y:4,tL:0,tR:5.5,bL:0,bR:0,a:0} },
+      sadUp:       { L:{w:18,h:9,y:-2,tL:4.5,tR:0,bL:0,bR:0,a:0},R:{w:18,h:9,y:-2,tL:0,tR:4.5,bL:0,bR:0,a:0} },
+      worried:     { L:{w:18,h:9,y:0,tL:4,tR:0,bL:0,bR:0,a:0},   R:{w:18,h:9,y:0,tL:0,tR:4,bL:0,bR:0,a:0} },
+      focused:     { L:{w:18,h:7,y:1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:18,h:7,y:1,tL:0,tR:0,bL:0,bR:0,a:0} },
       annoyed:     { L:{w:15,h:5.5,y:1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:4.2,y:0.5,tL:0,tR:0,bL:0,bR:0,a:0} },
-      surprised:   { L:{w:17,h:16,y:-1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:17,h:16,y:-1,tL:0,tR:0,bL:0,bR:0,a:0} },
-      skeptic:     { L:{w:15,h:12,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:7,y:2,tL:2.5,tR:0,bL:0,bR:0,a:0} },
+      surprised:   { L:{w:18,h:14,y:-1,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:18,h:14,y:-1,tL:0,tR:0,bL:0,bR:0,a:0} },
+      skeptic:     { L:{w:18,h:10,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:15,h:7,y:2,tL:2.5,tR:0,bL:0,bR:0,a:0} },
       bored:       { L:{w:15,h:6.5,y:3,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:15,h:6.5,y:3,tL:0,tR:0,bL:0,bR:0,a:0} },
       sleepy:      { L:{w:15,h:7.5,y:1,tL:1.5,tR:0,bL:0,bR:0,a:0},R:{w:15,h:3,y:2,tL:0,tR:1.5,bL:0,bR:0,a:0} },
       suspicious:  { L:{w:16,h:6,y:0,tL:0,tR:1.5,bL:0,bR:0,a:0},  R:{w:16,h:6,y:0,tL:1.5,tR:0,bL:0,bR:0,a:0} },
       squint:      { L:{w:16,h:3.8,y:0,tL:0,tR:0,bL:0,bR:0,a:0},  R:{w:16,h:3.8,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
-      angry:       { L:{w:15,h:10,y:1,tL:0,tR:5.5,bL:0,bR:0,a:0}, R:{w:15,h:10,y:1,tL:5.5,tR:0,bL:0,bR:0,a:0} },
+      angry:       { L:{w:18,h:9,y:1,tL:0,tR:5.5,bL:0,bR:0,a:0}, R:{w:18,h:9,y:1,tL:5.5,tR:0,bL:0,bR:0,a:0} },
       furious:     { L:{w:16,h:11,y:0,tL:0,tR:7.5,bL:0,bR:0,a:0}, R:{w:16,h:11,y:0,tL:7.5,tR:0,bL:0,bR:0,a:0} },
       scared:      { L:{w:16,h:14,y:-2,tL:2.2,tR:0,bL:0,bR:0,a:0},R:{w:16,h:14,y:-2,tL:0,tR:2.2,bL:0,bR:0,a:0} },
-      awe:         { L:{w:18,h:17,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:18,h:17,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
-      wink:        { L:{w:16,h:8.5,y:-2,tL:0,tR:0,bL:0,bR:0,a:3}, R:{w:16,h:2,y:0,tL:0,tR:0,bL:0,bR:0,a:0} }
+      awe:         { L:{w:19,h:15,y:0,tL:0,tR:0,bL:0,bR:0,a:0},   R:{w:19,h:15,y:0,tL:0,tR:0,bL:0,bR:0,a:0} },
+      wink:        { L:{w:18,h:7.5,y:-2,tL:0,tR:0,bL:0,bR:0,a:3}, R:{w:16,h:2,y:0,tL:0,tR:0,bL:0,bR:0,a:0} }
     };
 
     const THEMES = [
@@ -692,20 +699,15 @@
     // RoboPay eyes: smooth, solid leaf-shaped vector forms (not pixel rectangles).
     function drawSolidEye(ctx, cx, cy, e, scale, side) {
       const w = Math.max(1, e.w * scale), h = Math.max(1, e.h * scale);
-      const tilt = ((e.tL || 0) - (e.tR || 0)) * 0.035;
-      ctx.save();
-      ctx.translate(cx, cy + (e.y || 0) * scale);
-      ctx.rotate((side === "L" ? -1 : 1) * tilt);
-      ctx.scale(side === "R" ? -1 : 1, 1);
-      // Rounded tapered leaf: broad outer arc, softly pointed inner tip.
-      ctx.beginPath();
-      ctx.moveTo(-w * 0.48, -h * 0.34);
-      ctx.bezierCurveTo(-w * 0.30, -h * 0.60, w * 0.20, -h * 0.58, w * 0.48, -h * 0.30);
-      ctx.bezierCurveTo(w * 0.53, -h * 0.12, w * 0.48, h * 0.34, w * 0.12, h * 0.48);
-      ctx.bezierCurveTo(-w * 0.08, h * 0.57, -w * 0.34, h * 0.39, -w * 0.48, -h * 0.34);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      const tilt = ((e.tL || 0) - (e.tR || 0)) * 0.012;
+      ctx.save(); ctx.translate(cx, cy + (e.y || 0) * scale);
+      ctx.rotate((side === "L" ? -1 : 1) * tilt); if (side === "R") ctx.scale(-1, 1);
+      ctx.beginPath(); ctx.moveTo(-w*.52,-h*.30);
+      ctx.bezierCurveTo(-w*.48,-h*.62,-w*.05,-h*.68,w*.30,-h*.43);
+      ctx.bezierCurveTo(w*.53,-h*.26,w*.62,h*.13,w*.38,h*.39);
+      ctx.bezierCurveTo(w*.20,h*.58,-w*.22,h*.60,-w*.46,h*.30);
+      ctx.bezierCurveTo(-w*.58,h*.12,-w*.60,-h*.10,-w*.52,-h*.30);
+      ctx.closePath(); ctx.fill(); ctx.restore();
     }
 
     function drawStaticPixelEyes(canvasId, emoName, gw, gh) {
@@ -770,18 +772,10 @@
         if (this.withMouth) {
           const mCy = 34;
           for (let b = 0; b < 5; b++) {
-            const targetH = this.talking
-              ? 2 + Math.abs(Math.sin(time * 0.015 + b * 1.4)) * (b === 2 ? 7 : 5)
-              : (b === 2 ? 2 : 1.5);
-            this.talkBars[b] = lerp(this.talkBars[b], targetH, 0.28);
-            const h = Math.max(1, Math.round(this.talkBars[b]));
-            const bx = 19 + b * 4;
-            const by = Math.round(mCy - h / 2);
-            for (let py = by; py < by + h; py++) {
-              for (let px = bx; px < bx + 3; px++) {
-                ctx.fillRect(px * sx, py * sy, sx - gap, sy - gap);
-              }
-            }
+            const targetH = this.talking ? 2.5 + Math.abs(Math.sin(time * 0.012 + b * 1.15)) * (b === 2 ? 7 : 4.5) : (b === 2 ? 2 : 1.5);
+            this.talkBars[b] = lerp(this.talkBars[b], targetH, 0.24);
+            const h = Math.max(1.5, this.talkBars[b]), bx = 19 + b * 4;
+            ctx.beginPath(); ctx.roundRect(bx, mCy - h / 2, 2.8, h, 1.4); ctx.fill();
           }
         }
       }
@@ -1238,21 +1232,29 @@
     }
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let activeRec = null;
-    document.getElementById("supFaceStage").addEventListener("click", () => {
-      if (st.supTextMode) return;
-      Snd.tap();
-      if (!SpeechRec) { setSupportMode(true); showRtBanner("Открыт текстовый чат", "happy"); return; }
-      window.speechSynthesis?.cancel();
-      try {
-        if (activeRec) activeRec.abort();
-        activeRec = new SpeechRec(); activeRec.lang = "ru-RU"; activeRec.interimResults = false;
-        activeRec.onstart = () => { document.getElementById("supStatus").textContent = "Слушаю... говорите"; supFace.setEmotion("surprised"); };
-        activeRec.onresult = e => sendSupport(e.results[0][0].transcript, true);
-        activeRec.onerror = () => { document.getElementById("supStatus").textContent = "Не расслышал — нажмите снова или напишите текстом"; supFace.setEmotion("skeptic"); };
-        activeRec.start();
-      } catch { setSupportMode(true); }
-    });
+    let activeRec = null, voiceListening = false, voiceFinalText = "", voiceRestartTimer = null, voiceSilenceTimer = null;
+    const voiceStatus = msg => { const el = document.getElementById("supStatus"); if (el) el.textContent = msg; };
+    function stopVoiceCapture(submit = true) {
+      voiceListening = false; clearTimeout(voiceRestartTimer); clearTimeout(voiceSilenceTimer);
+      try { if (activeRec) activeRec.stop(); } catch {} activeRec = null;
+      const phrase = voiceFinalText.trim(); voiceFinalText = "";
+      if (submit && phrase) { voiceStatus("Распознал. Готовлю ответ..."); sendSupport(phrase, true); }
+      else if (!phrase) { voiceStatus("Ничего не расслышал. Попробуйте ещё раз или напишите текстом."); supFace.setEmotion("skeptic"); }
+    }
+    function startVoiceCapture() {
+      if (!SpeechRec) { setSupportMode(true); voiceStatus("Голосовой ввод недоступен в этом браузере — открыт текстовый чат."); return; }
+      if (voiceListening) { stopVoiceCapture(true); return; }
+      window.speechSynthesis && window.speechSynthesis.cancel(); voiceFinalText = ""; voiceListening = true;
+      const startRecognition = () => { if (!voiceListening) return; try {
+        const rec = new SpeechRec(); activeRec = rec; rec.lang = "ru-RU"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+        rec.onstart = () => { voiceStatus("Слушаю вас… Нажмите ещё раз, когда закончите."); supFace.setEmotion("surprised"); };
+        rec.onresult = ev => { let interim = ""; for (let n=ev.resultIndex;n<ev.results.length;n++) { const phrase=ev.results[n][0] && ev.results[n][0].transcript || ""; if(ev.results[n].isFinal) voiceFinalText += phrase+" "; else interim += phrase; } voiceStatus(interim ? "Слышу: "+interim : "Слушаю… Нажмите ещё раз, когда закончите."); clearTimeout(voiceSilenceTimer); voiceSilenceTimer=setTimeout(()=>{if(voiceListening&&voiceFinalText.trim())stopVoiceCapture(true);},6500); };
+        rec.onerror = ev => { if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){voiceListening=false;voiceStatus("Нет доступа к микрофону. Разрешите микрофон для Telegram.");supFace.setEmotion("sadDown");} else if(ev.error!=="no-speech"&&ev.error!=="aborted") voiceStatus("Проблема с распознаванием. Повторите или напишите текстом."); };
+        rec.onend = () => { if(voiceListening) voiceRestartTimer=setTimeout(startRecognition,250); }; rec.start();
+      } catch { if(voiceListening) voiceRestartTimer=setTimeout(startRecognition,500); } };
+      startRecognition();
+    }
+    document.getElementById("supFaceStage").addEventListener("click", () => { if(st.supTextMode)return; Snd.tap(); startVoiceCapture(); });
     document.getElementById("supSendBtn").addEventListener("click", () => { const i = document.getElementById("supTextInput"), v = i.value.trim(); if (!v) return; i.value = ""; sendSupport(v, false); });
     document.getElementById("supTextInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("supSendBtn").click(); });
 
@@ -1262,6 +1264,7 @@
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
     document.querySelectorAll(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModal(b.id); }));
 
+    function playTxEffect(){const target=document.getElementById("walletBalBig")?.closest(".card")||document.getElementById("walletBalBig");if(!target)return;target.classList.remove("rp-tx-flash","rp-tx-success");void target.offsetWidth;target.classList.add("rp-tx-flash","rp-tx-success");setTimeout(()=>target.classList.remove("rp-tx-flash","rp-tx-success"),1200);}
     document.getElementById("openTopupBtn").addEventListener("click", () => openModal("topupModal"));
     document.getElementById("openWithdrawBtn").addEventListener("click", () => openModal("withdrawModal"));
     document.getElementById("openTransferBtn").addEventListener("click", () => openModal("transferModal"));
@@ -1278,7 +1281,7 @@
       e.currentTarget.disabled = true;
       try {
         await api("/api/v1/topup", { method: "POST", body: JSON.stringify({ amount, comment: document.getElementById("topComm").value.trim() }) });
-        closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
+        playTxEffect(); closeModal("topupModal"); document.getElementById("topAmt").value = ""; document.getElementById("topComm").value = "";
         showRtBanner("Заявка на пополнение отправлена!", "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
@@ -1307,7 +1310,7 @@
       e.currentTarget.disabled = true;
       try {
         const r = await api("/api/v1/withdraw", { method: "POST", body: JSON.stringify({ gift_stars: st.selectedGift, note: document.getElementById("wdrNote").value.trim() }) });
-        closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "glee"); loadProfile();
+        playTxEffect(); closeModal("withdrawModal"); setBalance(r.wallet_balance); showRtBanner("Заявка на вывод отправлена!", "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
 
@@ -1322,7 +1325,7 @@
       e.currentTarget.disabled = true;
       try {
         const r = await api("/api/v1/transfer", { method: "POST", body: JSON.stringify({ to_tg_id, amount, comment: document.getElementById("trComm").value.trim() }) });
-        closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "glee"); loadProfile();
+        playTxEffect(); closeModal("transferModal"); setBalance(r.wallet_balance); showRtBanner(`Переведено ${r.net_rp} RP!`, "glee"); loadProfile();
       } catch (err) { showRtBanner(err.message, "sadDown"); } finally { e.currentTarget.disabled = false; }
     });
 
