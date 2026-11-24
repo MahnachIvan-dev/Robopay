@@ -689,46 +689,40 @@
       drawStaticPixelEyes("splashCanvas", "awe", 56, 28);
     }
 
-    function insidePixelEye(px, py, cx, cy, e) {
-      const halfW = e.w / 2, halfH = e.h / 2;
-      const lx = px - cx, ly = py - cy;
-      if (Math.abs(lx) > halfW || Math.abs(ly) > halfH) return false;
-      // Скругление углов
-      const rad = Math.min(0.8, halfW * 0.12, halfH * 0.12);
-      const dx = Math.max(0, Math.abs(lx) - (halfW - rad));
-      const dy = Math.max(0, Math.abs(ly) - (halfH - rad));
-      if (dx * dx + dy * dy > rad * rad) return false;
-      // Верхний скос (для angry, sad, focused, skeptic...)
-      const u = (lx + halfW) / Math.max(0.01, e.w);
-      const topCut = e.tL * (1 - u) + e.tR * u;
-      if (ly < -halfH + topCut) return false;
-      // Нижний вырез дугой (для happy / glee — вырезает сами пиксели без шторок!)
-      if (e.a > 0.1) {
-        const archLift = e.a * (1 - Math.pow(lx / halfW, 2));
-        if (ly > halfH - archLift) return false;
-      }
-      return true;
+    // RoboPay eyes: smooth, solid leaf-shaped vector forms (not pixel rectangles).
+    function drawSolidEye(ctx, cx, cy, e, scale, side) {
+      const w = Math.max(1, e.w * scale), h = Math.max(1, e.h * scale);
+      const tilt = ((e.tL || 0) - (e.tR || 0)) * 0.035;
+      ctx.save();
+      ctx.translate(cx, cy + (e.y || 0) * scale);
+      ctx.rotate((side === "L" ? -1 : 1) * tilt);
+      ctx.scale(side === "R" ? -1 : 1, 1);
+      // Rounded tapered leaf: broad outer arc, softly pointed inner tip.
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.48, -h * 0.34);
+      ctx.bezierCurveTo(-w * 0.30, -h * 0.60, w * 0.20, -h * 0.58, w * 0.48, -h * 0.30);
+      ctx.bezierCurveTo(w * 0.53, -h * 0.12, w * 0.48, h * 0.34, w * 0.12, h * 0.48);
+      ctx.bezierCurveTo(-w * 0.08, h * 0.57, -w * 0.34, h * 0.39, -w * 0.48, -h * 0.34);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     }
 
     function drawStaticPixelEyes(canvasId, emoName, gw, gh) {
-      const c = document.getElementById(canvasId); if (!c) return;
-      const ctx = c.getContext("2d");
-      const sx = c.width / gw, sy = c.height / gh;
-      ctx.clearRect(0, 0, c.width, c.height);
+      const canvas = document.getElementById(canvasId); if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = THEMES[themeIdx].eye;
       const em = EMO_PRESETS[emoName] || EMO_PRESETS.neutral;
       const scale = gw / 56;
-      const scaleEye = o => ({ w: o.w*scale, h: o.h*scale, y: o.y*scale, tL: o.tL*scale, tR: o.tR*scale, a: o.a*scale });
-      const eL = scaleEye(em.L), eR = scaleEye(em.R);
-      const lcx = gw * 0.31, rcx = gw * 0.69, cy = gh * 0.5;
-      const gap = sx >= 3 ? 0.7 : 0.25;
-      for (let y = 0; y < gh; y++) {
-        for (let x = 0; x < gw; x++) {
-          if (insidePixelEye(x + 0.5, y + 0.5, lcx, cy + eL.y, eL) || insidePixelEye(x + 0.5, y + 0.5, rcx, cy + eR.y, eR)) {
-            ctx.fillRect(x * sx, y * sy, sx - gap, sy - gap);
-          }
-        }
-      }
+      const scaleEye = o => ({ ...o, w: o.w * scale, h: o.h * scale, y: o.y * scale, tL: o.tL * scale, tR: o.tR * scale, a: o.a * scale });
+      const l = scaleEye(em.L), r = scaleEye(em.R);
+      const sx = canvas.width / gw, sy = canvas.height / gh;
+      ctx.save();
+      ctx.scale(sx, sy);
+      drawSolidEye(ctx, gw * 0.31, gh * 0.5, l, 1, "L");
+      drawSolidEye(ctx, gw * 0.69, gh * 0.5, r, 1, "R");
+      ctx.restore();
     }
 
     class PixelFaceController {
@@ -766,15 +760,11 @@
         const baseCy = this.withMouth ? 13.5 : 14;
         const lcy = baseCy + this.cur.L.y + this.gy;
         const rcy = baseCy + this.cur.R.y + this.gy;
-        const gap = sx >= 4 ? 0.9 : 0.6;
-
-        for (let y = 0; y < (this.withMouth ? 28 : gh); y++) {
-          for (let x = 0; x < gw; x++) {
-            if (insidePixelEye(x + 0.5, y + 0.5, lcx, lcy, this.cur.L) || insidePixelEye(x + 0.5, y + 0.5, rcx, rcy, this.cur.R)) {
-              ctx.fillRect(x * sx, y * sy, sx - gap, sy - gap);
-            }
-          }
-        }
+        ctx.save();
+        ctx.scale(sx, sy);
+        drawSolidEye(ctx, lcx, lcy, this.cur.L, 1, "L");
+        drawSolidEye(ctx, rcx, rcy, this.cur.R, 1, "R");
+        ctx.restore();
 
         // Пиксельный анимированный рот для страницы техподдержки
         if (this.withMouth) {
